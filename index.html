@@ -1000,6 +1000,71 @@
     let extractedBlueprintData = null;
     let step2AnalysisData = null;
     let batchClassificationResults = [];
+
+    // ══════════════════════ SMART CHUNKING UTILITIES ══════════════════════
+    /**
+     * Split `text` into chunks of at most `maxChars` characters,
+     * always breaking on a newline or sentence boundary ('. ', '! ', '? ')
+     * so the LLM never receives a fragment mid-sentence.
+     */
+    function chunkText(text, maxChars = 1400) {
+      if (!text || text.length <= maxChars) return [text];
+
+      const chunks = [];
+      let remaining = text;
+
+      while (remaining.length > maxChars) {
+        let cutAt = maxChars;
+
+        // Prefer a newline boundary within the last 20% of the window
+        const newlineIdx = remaining.lastIndexOf('\n', maxChars);
+        if (newlineIdx > maxChars * 0.8) {
+          cutAt = newlineIdx + 1;
+        } else {
+          // Fall back to sentence boundary ('. ', '! ', '? ')
+          const sentenceEnd = Math.max(
+            remaining.lastIndexOf('. ', maxChars),
+            remaining.lastIndexOf('! ', maxChars),
+            remaining.lastIndexOf('? ', maxChars)
+          );
+          if (sentenceEnd > maxChars * 0.6) {
+            cutAt = sentenceEnd + 2; // include the space after punctuation
+          }
+          // Otherwise fall back to last space
+          else {
+            const spaceIdx = remaining.lastIndexOf(' ', maxChars);
+            if (spaceIdx > maxChars * 0.5) cutAt = spaceIdx + 1;
+          }
+        }
+
+        chunks.push(remaining.slice(0, cutAt).trim());
+        remaining = remaining.slice(cutAt).trim();
+      }
+
+      if (remaining.length > 0) chunks.push(remaining.trim());
+      return chunks;
+    }
+
+    /**
+     * Return only the FIRST clean chunk — used for opening-hook analysis
+     * where only the promo opening (first ~30 s equivalent) is relevant.
+     */
+    function firstChunk(text, maxChars = 1400) {
+      return chunkText(text, maxChars)[0] || '';
+    }
+
+    /**
+     * Summarise a long text by chunking it and joining the first sentence
+     * of each chunk — creates a tight multi-section digest for Step 3 context.
+     */
+    function digestText(text, maxChars = 1400, maxChunks = 3) {
+      const chunks = chunkText(text, maxChars).slice(0, maxChunks);
+      return chunks.map((c, i) => {
+        // Take the first 2 sentences of each chunk as a digest line
+        const sentences = c.split(/(?<=[.!?])\s+/);
+        return `[Part ${i + 1}] ${sentences.slice(0, 2).join(' ')}`;
+      }).join('\n');
+    }
     
     // Switch tabs smoothly
     function switchTab(tabId, el) {
@@ -1226,7 +1291,7 @@
           const sysPrompt = `Script analysis engine for Pocket FM. ALL output must be in English regardless of input language.
 Return JSON with: show_name, power_start (opening hook in English), power_start_trope (3-7 words), power_start_promise (1 sentence), opening_conflict_type (one of: power_imbalance|physical_danger|secret_exposure|forbidden_desire|identity_threat|betrayal|moral_dilemma), dominant_genre_tags (2-4 from: secret_pregnancy|forbidden_romance|workplace_power|humiliation_redemption|identity_reveal|revenge_arc|rescue_romance|rich_poor_divide|medical_drama|forced_proximity|possessive_hero|damsel_in_peril), core_promise (1 sentence), pocket_fm_archetype (BEAST SHOW or ZERO TO HERO), archetype_rationale (max 20 words).`;
 
-          const scriptSnippet = scriptText.slice(0, 1500);
+          const scriptSnippet = firstChunk(scriptText, 1400);
           const result = await callGroqAPI([
             { role: 'system', content: sysPrompt },
             { role: 'user', content: `Analyze:\n\n${scriptSnippet}` }
@@ -1389,7 +1454,7 @@ Return JSON with: show_name, power_start (opening hook in English), power_start_
       btn.textContent = "Extracting Blueprint...";
       
       try {
-        const scriptSnippet = script.slice(0, 1500);
+        const scriptSnippet = firstChunk(script, 1400);
         const prompt = `Blueprint extractor. ALL output in English. Analyze script and return JSON only (no markdown):
 {"conflict_type":"one of: power_imbalance|physical_danger|secret_exposure|forbidden_desire|identity_threat|betrayal|moral_dilemma","genre_tags":["2-4 from: secret_pregnancy|forbidden_romance|workplace_power|humiliation_redemption|identity_reveal|revenge_arc|rescue_romance|rich_poor_divide|medical_drama|forced_proximity|possessive_hero|damsel_in_peril"],"required_trope_type":"3-7 words","emotional_thread":"single emotional dynamic","opening_promise":"1 sentence"}
 
@@ -1503,8 +1568,8 @@ ${scriptSnippet}`;
       const targetScript = document.getElementById('target-script-input').value.trim();
       
       try {
-        const srcSnip = sourceScript.slice(0, 1200);
-        const tgtSnip = targetScript.slice(0, 1200);
+        const srcSnip = firstChunk(sourceScript, 1200);
+        const tgtSnip = firstChunk(targetScript, 1200);
         const prompt = `PS Adaptor Step 2. ALL output in English.
 
 SOURCE (Asset #${selectedBackboneAssetId}, first 1200 chars):
@@ -1595,11 +1660,10 @@ Produce:
       }
       
       try {
-        // Truncate scripts to stay within token budget
-        const srcSnip3 = sourceScript.slice(0, 800);
-        const tgtSnip3 = targetScript.slice(0, 800);
-        // Pass only a short summary of step 2 to save tokens
-        const step2Summary = step2AnalysisData ? step2AnalysisData.slice(0, 400) : '';
+        const srcSnip3 = firstChunk(sourceScript, 800);
+        const tgtSnip3 = firstChunk(targetScript, 800);
+        // Use digestText to get a clean multi-part summary of step 2 analysis
+        const step2Summary = step2AnalysisData ? digestText(step2AnalysisData, 600, 2) : '';
 
         const prompt = `PS Adaptor Step 3. Write adapted script in English only (translate if needed).
 
@@ -1690,7 +1754,7 @@ ${currentAdapted}`;
       resultBox.style.display = 'none';
       
       try {
-        const textSnip = text.slice(0, 1200);
+        const textSnip = firstChunk(text, 1200);
         const prompt = `Pocket FM archetype classifier. ALL output in English.
 BEAST SHOW = existing power revealed (Underestimation→Reveal→Dominance).
 ZERO TO HERO = rise from weakness/humiliation (Weakness→Rise).
@@ -1757,7 +1821,7 @@ Return JSON only: {"pocket_fm_archetype":"BEAST SHOW or ZERO TO HERO","core_hook
         countText.textContent = `${i} / ${candidates.length}`;
         
         try {
-          const scriptSnip = scriptText.slice(0, 1000);
+          const scriptSnip = firstChunk(scriptText, 1000);
           const prompt = `Pocket FM archetype classifier. ALL output in English.
 BEAST SHOW = existing power revealed. ZERO TO HERO = rise from weakness.
 Script: "${scriptSnip}"
