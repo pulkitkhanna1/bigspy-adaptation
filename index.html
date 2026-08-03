@@ -1057,7 +1057,7 @@
       }
 
       const payload = {
-        model: 'gemma2-9b-it',   // 15,000 TPM free tier (vs 6,000 for llama-3.1-8b-instant)
+        model: 'llama-3.1-8b-instant',  // fast, high-TPM free-tier model
         messages: messages,
         temperature: 0.2,
         max_tokens: maxTokens     // hard cap — prevents 5 000-token blowout
