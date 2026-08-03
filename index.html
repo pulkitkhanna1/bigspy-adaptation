@@ -1223,24 +1223,14 @@
         
         const scriptText = scriptsDump[id] || '';
         try {
-          const sysPrompt = `You are a script analysis and Pocket FM adaptation classification engine.
-IMPORTANT LANGUAGE RULE: Regardless of the input language (e.g. Hindi, Spanish, Chinese, Telugu), you MUST perform all analysis in English and translate all output text fields to English. The output JSON values MUST be completely in English.
+          const sysPrompt = `Script analysis engine for Pocket FM. ALL output must be in English regardless of input language.
+Return JSON with: show_name, power_start (opening hook in English), power_start_trope (3-7 words), power_start_promise (1 sentence), opening_conflict_type (one of: power_imbalance|physical_danger|secret_exposure|forbidden_desire|identity_threat|betrayal|moral_dilemma), dominant_genre_tags (2-4 from: secret_pregnancy|forbidden_romance|workplace_power|humiliation_redemption|identity_reveal|revenge_arc|rescue_romance|rich_poor_divide|medical_drama|forced_proximity|possessive_hero|damsel_in_peril), core_promise (1 sentence), pocket_fm_archetype (BEAST SHOW or ZERO TO HERO), archetype_rationale (max 20 words).`;
 
-Analyze this script and return a raw JSON object with:
-- 'show_name': Short title (translated to English)
-- 'power_start': Opening hook sentences translated to English (approx 30s-1min of video, up to the cut point of tension)
-- 'power_start_trope': 3-7 words describing the opening trope in English
-- 'power_start_promise': 1-sentence promise of the hook to a scrolling viewer in English
-- 'opening_conflict_type': One of: power_imbalance, physical_danger, secret_exposure, forbidden_desire, identity_threat, betrayal, moral_dilemma
-- 'dominant_genre_tags': Array of 2-4 tags, selected from: secret_pregnancy, forbidden_romance, workplace_power, humiliation_redemption, identity_reveal, revenge_arc, rescue_romance, rich_poor_divide, medical_drama, forced_proximity, possessive_hero, damsel_in_peril
-- 'core_promise': 1-sentence story promise / core driver in English
-- 'pocket_fm_archetype': 'BEAST SHOW' or 'ZERO TO HERO' based on reveal of existing power (BEAST SHOW) vs rise from weakness (ZERO TO HERO)
-- 'archetype_rationale': A concise explanation of the classification in English (max 25 words)`;
-
+          const scriptSnippet = scriptText.slice(0, 1500);
           const result = await callGroqAPI([
             { role: 'system', content: sysPrompt },
-            { role: 'user', content: `Analyze this script: \n\n${scriptText}` }
-          ], true);
+            { role: 'user', content: `Analyze:\n\n${scriptSnippet}` }
+          ], true, 600);
           
           kb[id] = result;
         } catch (e) {
@@ -1399,25 +1389,16 @@ Analyze this script and return a raw JSON object with:
       btn.textContent = "Extracting Blueprint...";
       
       try {
-        const prompt = `You are an expert opening writer using the CRACK Opening Framework.
-LANGUAGE RULE: Regardless of the language of the target script, you MUST define the entire opening blueprint and text in English. Translate any non-English details to English.
+        const scriptSnippet = script.slice(0, 1500);
+        const prompt = `Blueprint extractor. ALL output in English. Analyze script and return JSON only (no markdown):
+{"conflict_type":"one of: power_imbalance|physical_danger|secret_exposure|forbidden_desire|identity_threat|betrayal|moral_dilemma","genre_tags":["2-4 from: secret_pregnancy|forbidden_romance|workplace_power|humiliation_redemption|identity_reveal|revenge_arc|rescue_romance|rich_poor_divide|medical_drama|forced_proximity|possessive_hero|damsel_in_peril"],"required_trope_type":"3-7 words","emotional_thread":"single emotional dynamic","opening_promise":"1 sentence"}
 
-Analyse this script through all 6 lenses and define the OPENING BLUEPRINT.
 SCRIPT:
-${script}
-
-Return ONLY a JSON response in the following format (no other text or markdown wrapper):
-{
-  "conflict_type": "one of: power_imbalance|physical_danger|secret_exposure|forbidden_desire|identity_threat|betrayal|moral_dilemma",
-  "genre_tags": ["tag1", "tag2", "selected from: secret_pregnancy|forbidden_romance|workplace_power|humiliation_redemption|identity_reveal|revenge_arc|rescue_romance|rich_poor_divide|medical_drama|forced_proximity|possessive_hero|damsel_in_peril"],
-  "required_trope_type": "3-7 word description of the required trope",
-  "emotional_thread": "the single V1 emotional dynamic",
-  "opening_promise": "one sentence outlining the target script promise"
-}`;
+${scriptSnippet}`;
 
         const res = await callGroqAPI([
           { role: 'user', content: prompt }
-        ], true);
+        ], true, 400);
         
         extractedBlueprintData = res;
         
@@ -1522,34 +1503,25 @@ Return ONLY a JSON response in the following format (no other text or markdown w
       const targetScript = document.getElementById('target-script-input').value.trim();
       
       try {
-        const prompt = `You are the PS Adaptor tool (v2.2). Perform Step 2 of a 3-step PS adaptation.
-LANGUAGE RULE: Regardless of the input scripts' language, you MUST write the entire beat map, diagnosis, and mapping table in English. Translate any non-English concepts or terms to English equivalents.
- 
-SOURCE SCRIPT (Asset #${selectedBackboneAssetId}):
-${sourceScript}
- 
-TARGET SCRIPT:
-${targetScript}
- 
-Produce all three parts:
- 
-## BEAT MAP
-List every beat in the source PS in order. For each:
-- Beat # | Function label | Sentence rhythm (short/medium/long) | Intensity (1–5) | Voice register
- 
-## WHAT MADE IT WORK
-2–3 sentences diagnosing the specific emotional mechanism. Not a plot summary — a precise identification of what makes this PS irresistible.
- 
-## MAPPING TABLE
-Map every show-specific element (names, institutions, objects, ceremonies, power systems). Use format:
-| Source Element | Functional Role | Why It Matters for Impact | Target Show Equivalent | Matchable? (YES/DROP) |
- 
-## UNIQUE SELLING ELEMENT
-Identify the single strongest selling element from the FIRST QUARTER of the TARGET SCRIPT.`;
+        const srcSnip = sourceScript.slice(0, 1200);
+        const tgtSnip = targetScript.slice(0, 1200);
+        const prompt = `PS Adaptor Step 2. ALL output in English.
+
+SOURCE (Asset #${selectedBackboneAssetId}, first 1200 chars):
+${srcSnip}
+
+TARGET (first 1200 chars):
+${tgtSnip}
+
+Produce:
+## BEAT MAP — list each beat: Beat# | Function | Rhythm | Intensity(1-5) | Register
+## WHAT MADE IT WORK — 2 sentences on emotional mechanism
+## MAPPING TABLE — | Source Element | Role | Target Equivalent | Keep/DROP |
+## UNIQUE SELLING ELEMENT — strongest hook from first quarter of target`;
 
         const res = await callGroqAPI([
           { role: 'user', content: prompt }
-        ], false);
+        ], false, 900);
         
         step2AnalysisData = res;
         
@@ -1623,45 +1595,33 @@ Identify the single strongest selling element from the FIRST QUARTER of the TARG
       }
       
       try {
-        const prompt = `You are the PS Adaptor tool (v2.2). Write the adapted PS (Step 3).
-LANGUAGE RULE: Regardless of the language of the source script or target script (e.g. Hindi, Spanish, Mandarin, etc.), you MUST write the entire adapted script in English. Translate all character dialogues, thoughts, and narrator voiceovers to English.
- 
-SOURCE SCRIPT (Asset #${selectedBackboneAssetId}):
-${sourceScript}
- 
-TARGET SCRIPT:
-${targetScript}
+        // Truncate scripts to stay within token budget
+        const srcSnip3 = sourceScript.slice(0, 800);
+        const tgtSnip3 = targetScript.slice(0, 800);
+        // Pass only a short summary of step 2 to save tokens
+        const step2Summary = step2AnalysisData ? step2AnalysisData.slice(0, 400) : '';
 
-${pocketInstructions}
-${hallInstructions}
- 
-STEP 2 ANALYSIS:
-${step2AnalysisData}
- 
-${notes ? 'WRITER MAPPING CORRECTIONS:\n' + notes + '\n' : ''}
-LENGTH CONSTRAINT: Max 16 lines.
-Checklist of rules to follow:
-1. Max 16 lines.
-2. Line 1-2 = scroll-stopper. Lines 3-4 = hook. No warm-up.
-3. Unique Selling Element embedded.
-4. DROP Rule: Completely omit elements marked DROP.
-5. Beat order remains same.
-6. Opening line has 7 words or fewer.
-7. Matches target script format.
-8. Speaker labels like [CHARACTER]: or [CHARACTER - internal]:.
- 
-## ADAPTED PS — ASSET #${selectedBackboneAssetId} → TARGET SHOW
-[Write the script here]
- 
----
+        const prompt = `PS Adaptor Step 3. Write adapted script in English only (translate if needed).
+
+SOURCE (Asset #${selectedBackboneAssetId}):
+${srcSnip3}
+
+TARGET:
+${tgtSnip3}
+
+${pocketInstructions}${hallInstructions}
+${step2Summary ? 'STEP 2 NOTES (excerpt):\n' + step2Summary + '\n' : ''}${notes ? 'WRITER NOTES: ' + notes + '\n' : ''}
+RULES: Max 16 lines. Line 1 ≤7 words. No warm-up. Label speakers [NAME]: or [NAME - internal]:.
+
+## ADAPTED PS
+[script here]
+
 ## MERGE LINE
-Find the exact line in the TARGET SCRIPT that comes immediately after the hook hand-off.
-[→ CONTINUES INTO TARGET SCRIPT]
-[Exact line here]`;
+[exact first line of target that follows the hook]`;
 
         const res = await callGroqAPI([
           { role: 'user', content: prompt }
-        ], false);
+        ], false, 1000);
         
         // Parse adapted script and merge line out of response
         let adaptedPart = res;
@@ -1730,30 +1690,18 @@ ${currentAdapted}`;
       resultBox.style.display = 'none';
       
       try {
-        const prompt = `You are a senior performance marketing creative strategist and promo adaptation classifier for Pocket FM.
-Your job is to identify the creative DNA of this promo opening and classify it into one of two Pocket FM adaptation archetypes:
-BEAST SHOW or ZERO TO HERO.
+        const textSnip = text.slice(0, 1200);
+        const prompt = `Pocket FM archetype classifier. ALL output in English.
+BEAST SHOW = existing power revealed (Underestimation→Reveal→Dominance).
+ZERO TO HERO = rise from weakness/humiliation (Weakness→Rise).
 
-RULES:
-- BEAST SHOW: Power/status/identity is already present/latent and revealed or flexed. Emotional engine: Underestimation -> Reveal -> Dominance.
-- ZERO TO HERO: Journey from weakness, poverty, disadvantage, failure, or humiliation to power/status. Emotional engine: Weakness -> Rise.
+Script: "${textSnip}"
 
-LANGUAGE RULE: Regardless of the input script's language, your classification results, core hook, and rationale MUST be written in English. Translate any non-English concepts to English.
-
-Analyze this script:
-"${text}"
-
-Return a JSON object in this exact format (no markdown):
-{
-  "pocket_fm_archetype": "BEAST SHOW" or "ZERO TO HERO",
-  "core_hook": "One short sentence describing the underlying hook (in English)",
-  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words (in English)",
-  "confidence": "HIGH" or "MEDIUM" or "LOW"
-}`;
+Return JSON only: {"pocket_fm_archetype":"BEAST SHOW or ZERO TO HERO","core_hook":"1 sentence","archetype_rationale":"max 20 words","confidence":"HIGH or MEDIUM or LOW"}`;
 
         const res = await callGroqAPI([
           { role: 'user', content: prompt }
-        ], true);
+        ], true, 200);
         
         const badge = document.getElementById('cls-badge');
         badge.textContent = res.pocket_fm_archetype;
@@ -1809,30 +1757,15 @@ Return a JSON object in this exact format (no markdown):
         countText.textContent = `${i} / ${candidates.length}`;
         
         try {
-          const prompt = `You are a senior performance marketing creative strategist and promo adaptation classifier for Pocket FM.
-Your job is to identify the creative DNA of this promo opening and classify it into one of two Pocket FM adaptation archetypes:
-BEAST SHOW or ZERO TO HERO.
-
-RULES:
-- BEAST SHOW: Power/status/identity is already present/latent and revealed or flexed. Emotional engine: Underestimation -> Reveal -> Dominance.
-- ZERO TO HERO: Journey from weakness, poverty, disadvantage, failure, or humiliation to power/status. Emotional engine: Weakness -> Rise.
-
-LANGUAGE RULE: Regardless of the input script's language, your classification results, core hook, and rationale MUST be written in English. Translate any non-English concepts to English.
-
-Analyze this script:
-"${scriptText}"
-
-Return a JSON object in this exact format (no markdown):
-{
-  "pocket_fm_archetype": "BEAST SHOW" or "ZERO TO HERO",
-  "core_hook": "One short sentence describing the underlying hook (in English)",
-  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words (in English)",
-  "confidence": "HIGH" or "MEDIUM" or "LOW"
-}`;
+          const scriptSnip = scriptText.slice(0, 1000);
+          const prompt = `Pocket FM archetype classifier. ALL output in English.
+BEAST SHOW = existing power revealed. ZERO TO HERO = rise from weakness.
+Script: "${scriptSnip}"
+Return JSON only: {"pocket_fm_archetype":"BEAST SHOW or ZERO TO HERO","core_hook":"1 sentence","archetype_rationale":"max 20 words","confidence":"HIGH or MEDIUM or LOW"}`;
 
           const res = await callGroqAPI([
             { role: 'user', content: prompt }
-          ], true);
+          ], true, 200);
           
           const record = {
             id: asset.id,
