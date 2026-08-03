@@ -835,29 +835,45 @@
             <div class="form-group">
               <label class="form-label">Format Style</label>
               <select id="psa-format" class="input-control">
-                <option value="standard">Standard Video Script</option>
                 <option value="pocketfm" selected>Pocket FM Audio Drama (with SFX Cues)</option>
+                <option value="standard">Standard Video Promo Script</option>
               </select>
             </div>
             
             <div class="form-group">
-              <label class="form-label">Hallucination Scale (Sensationalism)</label>
+              <label class="form-label">Promo Tone Preset</label>
+              <select id="psa-tone-preset" class="input-control">
+                <option value="pocket_high_ctr" selected>Pocket FM High-CTR Promo (Slap & Reveal)</option>
+                <option value="dark_romance">Dark Romance & Revenge Reversal</option>
+                <option value="billionaire_secret">Secret Billionaire / Hidden Heir</option>
+                <option value="alpha_mate">Supernatural Alpha / Fated Mate</option>
+                <option value="grounded_drama">Grounded / Realistic Character Drama</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Dramatic Intensifier</label>
               <select id="psa-hallucination-level" class="input-control">
-                <option value="faithful">Faithful (0% Hook Preservation)</option>
-                <option value="heightened">Heightened (50% Dramatic Escalation)</option>
-                <option value="sensational" selected>Sensational (100% Clickbait Injector)</option>
+                <option value="faithful">Faithful (0% Extra Hallucination)</option>
+                <option value="heightened" selected>Heightened (50% Dramatic Escalation)</option>
+                <option value="sensational">Sensational (100% Shocking Hook)</option>
               </select>
             </div>
             
             <div class="form-group">
-              <label class="form-label">Trope Boosters (Force Inject)</label>
+              <label class="form-label">Selective Trope Injection</label>
               <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:6px">
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-billionaire" checked> Secret Billionaire / CEO</label>
-                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-pregnancy" checked> Secret Pregnancy / Hidden Heir</label>
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-revenge" checked> Revenge Reversal (Slap)</label>
+                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-pregnancy"> Secret Pregnancy / Hidden Heir</label>
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-marriage"> Forced Contract Marriage</label>
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-mate"> Werewolf / Fated Mate</label>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Creative Team Directives (Optional)</label>
+              <textarea id="creative-directives" class="input-control" style="min-height:70px;font-size:12px" placeholder="E.g., Make female lead colder, intensify betrayal dialogue, add door smash SFX..."></textarea>
             </div>
             
             <button class="btn btn-primary" style="width:100%" onclick="generateAdaptedScript()">Generate Script</button>
@@ -1648,63 +1664,92 @@ Produce:
       const targetScript = document.getElementById('target-script-input').value.trim();
       const notes = document.getElementById('psa-notes').value.trim();
       const format = document.getElementById('psa-format').value;
+      const tonePreset = document.getElementById('psa-tone-preset') ? document.getElementById('psa-tone-preset').value : 'pocket_high_ctr';
       const hallucinationLevel = document.getElementById('psa-hallucination-level').value;
+      const creativeDirectives = document.getElementById('creative-directives') ? document.getElementById('creative-directives').value.trim() : '';
       
       const tropes = [];
       if (document.getElementById('trope-billionaire').checked) tropes.push('Secret Billionaire / Hidden CEO');
-      if (document.getElementById('trope-pregnancy').checked) tropes.push('Secret Pregnancy / Hidden Heir');
       if (document.getElementById('trope-revenge').checked) tropes.push('Revenge Reversal (Slap)');
+      if (document.getElementById('trope-pregnancy').checked) tropes.push('Secret Pregnancy / Hidden Heir');
       if (document.getElementById('trope-marriage').checked) tropes.push('Forced Contract Marriage');
       if (document.getElementById('trope-mate').checked) tropes.push('Werewolf / Fated Mate');
 
-      let pocketInstructions = "";
+      let toneInstructions = "";
+      if (tonePreset === 'pocket_high_ctr') {
+        toneInstructions = "TONE: Pocket FM High-CTR Promo. Fast-paced, high emotional friction, sudden power reversal, immediate confrontation.";
+      } else if (tonePreset === 'dark_romance') {
+        toneInstructions = "TONE: Dark Romance & Revenge. Cold divorce, public humiliation reversed, intense possessive hero confrontation.";
+      } else if (tonePreset === 'billionaire_secret') {
+        toneInstructions = "TONE: Secret Billionaire Reveal. Underestimated protagonist reveals massive wealth and authority.";
+      } else if (tonePreset === 'alpha_mate') {
+        toneInstructions = "TONE: Werewolf Alpha & Fated Mate. High supernatural stakes, fierce territorial protection, intensemate bond tension.";
+      } else {
+        toneInstructions = "TONE: Grounded Character Drama. Realistic human dialogue, deep emotional betrayal, believable confrontation.";
+      }
+
+      let formatInstructions = "";
       if (format === 'pocketfm') {
-        pocketInstructions = `
-[TARGET FORMAT: POCKET FM AUDIO DRAMA]
-- You MUST write this adaptation in the Pocket FM audio series promotional script format.
-- Heavily weave in explicit, dramatic sound effect cues (e.g. [SFX: slap], [SFX: glass shatter], [SFX: door crash], [SFX: crowd gasp], [SFX: wolf howl], [SFX: heartbeat], [SFX: low growl]) to punctuate key emotional beats.
-- Emphasize character dialogue and narrator voiceovers (NVO / FVO) describing sensory details and raw emotion.
-- Dialogue format: [CHARACTER NAME]: "dialogue line"
-- Thought format: [CHARACTER NAME - internal]: "internal thoughts"
+        formatInstructions = `
+POCKET FM AUDIO DRAMA FORMAT:
+- Write as an audio drama promotional script.
+- Include explicit sound effect cues (e.g. [SFX: slap], [SFX: door crash], [SFX: glass shatter], [SFX: heartbeat], [SFX: crowd gasp], [SFX: thunder]).
+- Format:
+  [NARRATOR]: "voiceover text"
+  [CHARACTER NAME]: "spoken dialogue"
+  [CHARACTER NAME - internal]: "short internal thought"
+  [SFX: cue name]
+`;
+      } else {
+        formatInstructions = `
+STANDARD VIDEO SCRIPT FORMAT:
+- Format: [CHARACTER NAME]: "spoken dialogue" or [NARRATOR]: "voiceover". Keep lines punchy and fast-paced.
 `;
       }
       
       let hallInstructions = "";
       if (hallucinationLevel === 'faithful') {
-        hallInstructions = `[HALLUCINATION SCALE: FAITHFUL (0%)]\n- Stay strictly faithful to target script details. Do not inject any new outside tropes.`;
+        hallInstructions = "HALLUCINATION: FAITHFUL (0%). Stay close to target script details.";
       } else if (hallucinationLevel === 'heightened') {
-        hallInstructions = `[HALLUCINATION SCALE: HEIGHTENED (50%)]\n- Embellish and heighten the emotional conflict and dialogues. Make conflict twice as intense.`;
+        hallInstructions = "HALLUCINATION: HEIGHTENED (50%). Embellish emotional stakes and dramatic friction.";
       } else {
-        hallInstructions = `[HALLUCINATION SCALE: SENSATIONAL (100% CLICKBAIT)]\n- You are encouraged to invent shocking sensational tropes and cliffhangers (e.g. secret billionaire reveals, slaps, forced contracts) even if not present in the target script.`;
+        hallInstructions = "HALLUCINATION: SENSATIONAL (100%). Inject maximum dramatic shock, slaps, and power reversals.";
       }
       
       if (tropes.length > 0) {
-        hallInstructions += `\n- Specifically inject or hallucinate these tropes: ${tropes.join(', ')}.`;
+        hallInstructions += ` Seamlessly weave in these tropes: ${tropes.join(', ')}.`;
       }
       
       try {
         const srcSnip3 = firstChunk(sourceScript, 800);
         const tgtSnip3 = firstChunk(targetScript, 800);
-        // Use digestText to get a clean multi-part summary of step 2 analysis
-        const step2Summary = step2AnalysisData ? digestText(step2AnalysisData, 600, 2) : '';
+        const step2Summary = step2AnalysisData ? digestText(step2AnalysisData, 500, 2) : '';
 
-        const prompt = `PS Adaptor Step 3. Write adapted script in English only (translate if needed).
+        const prompt = `You are a senior promo writer for Pocket FM audio series. Write an adapted promotional script in ENGLISH.
 
-SOURCE (Asset #${selectedBackboneAssetId}):
+CRITICAL QUALITY & REASONING RULES:
+1. DO NOT generate disjointed internal monologues or absurd/surreal nonsense (e.g. no eggs, sci-fi tropes, or floating random thoughts). Build coherent, realistic dramatic confrontation.
+2. Line 1 (Scroll-Stopper): ≤7 words. Must be an immediate high-stakes hook (e.g. [SFX: slap] "You dare touch my wife?").
+3. Total Length: Exactly 12 to 16 lines.
+4. Structure: Shock Opening (Lines 1-2) -> Heated Conflict (Lines 3-7) -> Power/Identity Reveal (Lines 8-12) -> Unresolved Cliffhanger (Lines 13-16).
+
+${toneInstructions}
+${formatInstructions}
+${hallInstructions}
+${creativeDirectives ? 'CREATIVE TEAM DIRECTIVES:\n' + creativeDirectives + '\n' : ''}
+SOURCE SCRIPT (Asset #${selectedBackboneAssetId}):
 ${srcSnip3}
 
-TARGET:
+TARGET SCRIPT:
 ${tgtSnip3}
 
-${pocketInstructions}${hallInstructions}
-${step2Summary ? 'STEP 2 NOTES (excerpt):\n' + step2Summary + '\n' : ''}${notes ? 'WRITER NOTES: ' + notes + '\n' : ''}
-RULES: Max 16 lines. Line 1 ≤7 words. No warm-up. Label speakers [NAME]: or [NAME - internal]:.
+${step2Summary ? 'STEP 2 BACKBONE NOTES:\n' + step2Summary + '\n' : ''}${notes ? 'MAPPING CORRECTIONS:\n' + notes + '\n' : ''}
 
 ## ADAPTED PS
-[script here]
+[Write the script here]
 
 ## MERGE LINE
-[exact first line of target that follows the hook]`;
+[Exact first line of target script where the promo hands off to the main story]`;
 
         const res = await callGroqAPI([
           { role: 'user', content: prompt }
