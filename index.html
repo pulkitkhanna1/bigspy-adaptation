@@ -198,6 +198,7 @@
     /* Main Area Container */
     .main-content {
       flex-grow: 1;
+      min-width: 0; /* Critical: prevents flex child from overflowing grid */
       display: flex;
       flex-direction: column;
       overflow-y: auto;
@@ -231,6 +232,8 @@
       display: grid;
       grid-template-columns: repeat(12, 1fr);
       gap: 24px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .card {
@@ -391,8 +394,7 @@
     }
 
     .view-panel.active {
-      display: flex;
-      flex-direction: column;
+      display: block;
     }
 
     @keyframes fadeIn {
@@ -416,13 +418,20 @@
 
     /* ══════════════════════ GRID SYSTEM LAYOUTS ══════════════════════ */
     .col-12 { grid-column: span 12; }
-    .col-8 { grid-column: span 8; }
-    .col-6 { grid-column: span 6; }
-    .col-4 { grid-column: span 4; }
-    .col-3 { grid-column: span 3; }
+    .col-9  { grid-column: span 9; }
+    .col-8  { grid-column: span 8; }
+    .col-7  { grid-column: span 7; }
+    .col-6  { grid-column: span 6; }
+    .col-5  { grid-column: span 5; }
+    .col-4  { grid-column: span 4; }
+    .col-3  { grid-column: span 3; }
+    .col-2  { grid-column: span 2; }
 
+    @media (max-width: 1200px) {
+      .col-7, .col-5 { grid-column: span 12; }
+    }
     @media (max-width: 1024px) {
-      .col-8, .col-6, .col-4, .col-3 { grid-column: span 12; }
+      .col-9, .col-8, .col-6, .col-4, .col-3 { grid-column: span 12; }
     }
 
     /* ══════════════════════ CUSTOM PANEL DESIGN ══════════════════════ */
