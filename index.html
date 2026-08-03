@@ -1504,11 +1504,13 @@ ${scriptSnippet}`;
       listEl.innerHTML = '';
       
       const targetTags = new Set(blueprint.genre_tags || []);
+      const reqTropeWords = (blueprint.required_trope_type || "").toLowerCase().split(/\s+/).filter(w => w.length > 3);
       const matches = [];
       const maxPossibleScore = 3 + (targetTags.size > 0 ? targetTags.size * 2 : 6);
       
-      // Rank database items by overlapping genre tags
+      // Rank database items by conflict, tag overlap, and trope keyword relevance
       Object.entries(kb).forEach(([id, item]) => {
+        if (item.is_duplicate) return; // Exclude marked duplicate scripts
         let rawScore = 0;
         if (item.opening_conflict_type === blueprint.conflict_type) rawScore += 3;
         if (Array.isArray(item.dominant_genre_tags)) {
@@ -1516,12 +1518,29 @@ ${scriptSnippet}`;
             if (targetTags.has(t)) rawScore += 2;
           });
         }
+        const tropeText = (item.power_start_trope || "").toLowerCase();
+        reqTropeWords.forEach(w => {
+          if (tropeText.includes(w)) rawScore += 1;
+        });
+
         const scoreTen = Math.min(10, Math.max(1, Math.round((rawScore / maxPossibleScore) * 10)));
         matches.push({ id: parseInt(id), score: scoreTen, rawScore, item });
       });
       
-      matches.sort((a, b) => b.score - a.score);
-      const top3 = matches.slice(0, 3);
+      // Sort strictly by highest raw relevance score
+      matches.sort((a, b) => b.rawScore - a.rawScore || a.id - b.id);
+      
+      // Deduplicate top picks by trope so all 3 recommendations are distinct
+      const top3 = [];
+      const seenTropes = new Set();
+      for (const m of matches) {
+        const tropeKey = (m.item.power_start_trope || "").toLowerCase().trim();
+        if (!seenTropes.has(tropeKey)) {
+          seenTropes.add(tropeKey);
+          top3.push(m);
+          if (top3.length === 3) break;
+        }
+      }
       
       top3.forEach(m => {
         const itemBox = document.createElement('div');
