@@ -8,7 +8,8 @@ import urllib.error
 
 # Config
 DEFAULT_CSV_PATH = "scripts_database.csv"
-GEMINI_MODEL = "gemini-2.0-flash"
+GROQ_MODEL = "llama-3.1-8b-instant"
+HARDCODED_API_KEY = "GROQ_API_KEY_REMOVED"
 
 CRACK_RULES = """THE CRACK OPENING FRAMEWORK — Core Rules:
 
@@ -47,45 +48,59 @@ MERGE POINT RULES:
 - The merge must feel seamless — the emotional thread must not break at the merge point
 - The opening's final emotional beat must CONNECT to (not contradict) what follows immediately after the merge point"""
 
-def call_gemini_api(prompt, api_key, system_instruction=None, json_mode=False):
-    """Makes a request to the Google Gemini API using only urllib."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+def call_groq_api(prompt, api_key, system_instruction=None, json_mode=False):
+    """Makes a request to the Groq API using only urllib and handles 429 retries."""
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+    messages.append({"role": "user", "content": prompt})
     
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "temperature": 0.2
     }
     
-    if system_instruction:
-        payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
-        
-    generation_config = {}
     if json_mode:
-        generation_config["responseMimeType"] = "application/json"
-    
-    if generation_config:
-        payload["generationConfig"] = generation_config
+        payload["response_format"] = {"type": "json_object"}
         
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        },
         method="POST"
     )
     
-    try:
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            
-            if not res_data.get("candidates"):
-                raise ValueError(f"No candidates returned: {res_data}")
+    attempts = 0
+    max_attempts = 3
+    import time
+    
+    while attempts < max_attempts:
+        attempts += 1
+        try:
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
                 
-            text = res_data["candidates"][0]["content"]["parts"][0]["text"]
-            return text
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
-        raise RuntimeError(f"Gemini API HTTP Error {e.code}: {error_body}")
-    except Exception as e:
-        raise RuntimeError(f"Error calling Gemini API: {str(e)}")
+                if not res_data.get("choices") or len(res_data["choices"]) == 0:
+                    raise ValueError(f"No choices returned: {res_data}")
+                    
+                text = res_data["choices"][0]["message"]["content"]
+                return text
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            if e.code == 429:
+                if attempts < max_attempts:
+                    print(f"\n[429 Rate Limit] Groq TPM limit hit. Waiting 15 seconds before retry attempt {attempts}...")
+                    time.sleep(15)
+                    continue
+            raise RuntimeError(f"Groq API HTTP Error {e.code}: {error_body}")
+        except Exception as e:
+            raise RuntimeError(f"Error calling Groq API: {str(e)}")
 
 def load_database(csv_path):
     """Loads analyzed scripts from the CSV file."""
@@ -191,12 +206,14 @@ def main():
     print("====================================================\n")
     
     # 1. API Key Setup
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        api_key = input("Enter your Gemini API Key: ").strip()
-        if not api_key:
-            print("Error: Gemini API Key is required.")
-            sys.exit(1)
+        api_key = HARDCODED_API_KEY
+        if not api_key or api_key == "YOUR_API_KEY_HERE":
+            api_key = input("Enter your Groq API Key: ").strip()
+            if not api_key:
+                print("Error: Groq API Key is required.")
+                sys.exit(1)
             
     # 2. Database Setup
     csv_path = input(f"Enter path to database CSV [default: {DEFAULT_CSV_PATH}]: ").strip()
@@ -238,7 +255,7 @@ Return ONLY a JSON response in the following format (no other text or markdown w
 }}"""
 
     try:
-        blueprint_text = call_gemini_api(blueprint_prompt, api_key, json_mode=True)
+        blueprint_text = call_groq_api(blueprint_prompt, api_key, json_mode=True)
         blueprint = json.loads(blueprint_text.strip())
         print(f"Extracted Blueprint successfully:")
         print(f" - Conflict Type: {blueprint.get('conflict_type')}")
@@ -390,7 +407,7 @@ Identify the single strongest selling element from the FIRST QUARTER of the TARG
 
     print("Analyzing source script beats and elements mapping...")
     try:
-        step2_analysis = call_gemini_api(psa_step2_prompt, api_key)
+        step2_analysis = call_groq_api(psa_step2_prompt, api_key)
         print("\n=== Elements Mapping & Analysis ===")
         print(step2_analysis)
     except Exception as e:
@@ -438,7 +455,7 @@ Find the exact line in the TARGET SCRIPT that comes immediately after the hook h
 """
 
     try:
-        adapted_script = call_gemini_api(psa_step3_prompt, api_key)
+        adapted_script = call_groq_api(psa_step3_prompt, api_key)
         print("\n=== Adapted Script Output ===")
         print(adapted_script)
     except Exception as e:
@@ -484,7 +501,7 @@ Return ONLY valid JSON.
 """
 
     try:
-        continuity_json = call_gemini_api(continuity_prompt, api_key, json_mode=True)
+        continuity_json = call_groq_api(continuity_prompt, api_key, json_mode=True)
         res = json.loads(continuity_json.strip())
         
         print("\n=== Continuity Report ===")
