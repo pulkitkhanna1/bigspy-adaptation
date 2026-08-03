@@ -220,18 +220,19 @@ function callGroqApi(scriptText, apiKey) {
   
   const systemInstruction = 
     "You are a script analysis and Pocket FM adaptation classification engine.\n\n" +
+    "IMPORTANT LANGUAGE RULE: The input script may be in any language (e.g. Hindi, Spanish, Chinese, Telugu, etc.). Regardless of the input language, you MUST perform all analysis in English and translate all output text fields (including show_name, power_start, power_start_trope, power_start_promise, core_promise, and archetype_rationale) to English. The output JSON values MUST be completely in English.\n\n" +
     "Analyze the provided script and return a raw JSON object with the following keys:\n" +
-    "- 'show_name': Short name/title of the show or a fitting title\n" +
-    "- 'power_start': The verbatim first few sentences of the script (hook, approx 30s-1min of video, up to the cut point of tension)\n" +
-    "- 'power_start_trope': 3-7 words describing the opening trope\n" +
-    "- 'power_start_promise': 1-sentence promise of the hook to a scrolling viewer\n" +
+    "- 'show_name': Short name/title of the show or a fitting title (translated to English)\n" +
+    "- 'power_start': The verbatim opening hook / first few sentences of the script, translated to English (approx 30s-1min of video, up to the cut point of tension)\n" +
+    "- 'power_start_trope': 3-7 words describing the opening trope in English\n" +
+    "- 'power_start_promise': 1-sentence promise of the hook to a scrolling viewer in English\n" +
     "- 'opening_conflict_type': One of: power_imbalance, physical_danger, secret_exposure, forbidden_desire, identity_threat, betrayal, moral_dilemma\n" +
     "- 'dominant_genre_tags': Array of 2-4 tags, selected from: secret_pregnancy, forbidden_romance, workplace_power, humiliation_redemption, identity_reveal, revenge_arc, rescue_romance, rich_poor_divide, medical_drama, forced_proximity, possessive_hero, damsel_in_peril\n" +
-    "- 'core_promise': 1-sentence story promise / core driver\n" +
+    "- 'core_promise': 1-sentence story promise / core driver in English\n" +
     "- 'pocket_fm_archetype': MUST be either 'BEAST SHOW' or 'ZERO TO HERO'. Classify the hook mechanism of this opening based on these rules:\n" +
     "  * BEAST SHOW: The hook is built on existing/latent exceptional power, status, wealth, supernatural ability, or identity that is revealed, flexed, or unleashed. The emotional engine is Underestimation -> Reveal -> Dominance. (e.g. secret billionaire, hidden power reveal, revenge via supreme strength, powerful person underestimated).\n" +
     "  * ZERO TO HERO: The hook is built on the journey, acquisition, or growth of power/status from a weak, poor, disadvantaged, rejected, or humiliated starting point. The emotional engine is Weakness/Humiliation -> Struggle -> Rise. (e.g. poor underdog turns life around, weak person progressive training, transformation after rejection/failure).\n" +
-    "- 'archetype_rationale': A concise explanation of the classification (maximum 25 words).\n\n" +
+    "- 'archetype_rationale': A concise explanation of the classification (maximum 25 words, in English).\n\n" +
     "Return ONLY the raw JSON object. Do not wrap in markdown tags like ```json. Do not include any other text.";
 
   const promptText = 

@@ -230,14 +230,16 @@ RULES:
 - BEAST SHOW: Power/status/identity is already present/latent and revealed or flexed. Emotional engine: Underestimation -> Reveal -> Dominance.
 - ZERO TO HERO: Journey from weakness, poverty, disadvantage, failure, or humiliation to power/status. Emotional engine: Weakness -> Rise.
 
+LANGUAGE RULE: Regardless of the input script's language, your classification results, core hook, and rationale MUST be written in English. Translate any non-English concepts to English.
+
 Analyze this script:
 "{script_text}"
 
 Return a JSON object in this exact format (no markdown):
 {{
   "pocket_fm_archetype": "BEAST SHOW" or "ZERO TO HERO",
-  "core_hook": "One short sentence describing the underlying hook",
-  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words",
+  "core_hook": "One short sentence describing the underlying hook (in English)",
+  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words (in English)",
   "confidence": "HIGH" or "MEDIUM" or "LOW"
 }}"""
 
@@ -327,6 +329,8 @@ def main():
 
 CRACK RULES:
 {CRACK_RULES}
+
+LANGUAGE RULE: Regardless of the language of the target script, you MUST define the entire opening blueprint and text in English. Translate any non-English details to English.
 
 Analyse this script through all 6 lenses and define the OPENING BLUEPRINT.
 SCRIPT:
@@ -468,6 +472,8 @@ Return ONLY a JSON response in the following format (no other text or markdown w
     
     # Step 3A: PSA Step 2 Analysis
     psa_step2_prompt = f"""You are the PS Adaptor tool (v2.2). Perform Step 2 of a 3-step PS adaptation.
+
+LANGUAGE RULE: Regardless of the input scripts' language, you MUST write the entire beat map, diagnosis, and mapping table in English. Translate any non-English concepts or terms to English equivalents.
  
 SOURCE SCRIPT (Asset #{selected_item['id']}):
 {source_script}
@@ -507,6 +513,8 @@ Identify the single strongest selling element from the FIRST QUARTER of the TARG
     print("----------------------------------------------------")
     
     psa_step3_prompt = f"""You are the PS Adaptor tool (v2.2). Write the adapted PS (Step 3).
+
+LANGUAGE RULE: Regardless of the language of the source script or target script (e.g. Hindi, Spanish, Mandarin, etc.), you MUST write the entire adapted script in English. Translate all character dialogues, thoughts, and narrator voiceovers to English.
  
 SOURCE SCRIPT (Asset #{selected_item['id']}):
 {source_script}
