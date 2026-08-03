@@ -13,8 +13,8 @@
  * 7. Click "Process Pending Rows" to run. The script will automatically add the new columns!
  */
 
-// Paste your Gemini API Key here if you wish to hardcode it:
-const HARDCODED_API_KEY = 'GEMINI_API_KEY_REMOVED';
+// Paste your Groq API Key here if you wish to hardcode it:
+const HARDCODED_API_KEY = 'GROQ_API_KEY_REMOVED';
 
 // Custom menu on spreadsheet open
 function onOpen() {
@@ -39,8 +39,8 @@ function setApiKey() {
   if (result.getSelectedButton() === ui.Button.OK) {
     const key = result.getResponseText().trim();
     if (key) {
-      PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', key);
-      ui.alert('Success', 'Gemini API Key saved successfully!', ui.ButtonSet.OK);
+      PropertiesService.getScriptProperties().setProperty('GROQ_API_KEY', key);
+      ui.alert('Success', 'Groq API Key saved successfully!', ui.ButtonSet.OK);
     } else {
       ui.alert('Error', 'API Key cannot be empty.', ui.ButtonSet.OK);
     }
@@ -148,11 +148,11 @@ function processPendingRows() {
   // Fetch API Key
   let apiKey = HARDCODED_API_KEY;
   if (apiKey === 'YOUR_API_KEY_HERE' || !apiKey) {
-    apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+    apiKey = PropertiesService.getScriptProperties().getProperty('GROQ_API_KEY');
   }
   
   if (!apiKey) {
-    SpreadsheetApp.getUi().alert('Error: Gemini API Key is not set. Please set the HARDCODED_API_KEY variable at the top of the Apps Script or use BigSpy Engine > Set Gemini API Key.');
+    SpreadsheetApp.getUi().alert('Error: Groq API Key is not set. Please set the HARDCODED_API_KEY variable at the top of the Apps Script.');
     return;
   }
   
@@ -176,7 +176,7 @@ function processPendingRows() {
       }
       
       try {
-        const analysis = callGeminiApi(scriptVal, apiKey);
+        const analysis = callGroqApi(scriptVal, apiKey);
         
         // Write results to sheet
         if (colIndex.show !== -1) sheet.getRange(rowNum, colIndex.show + 1).setValue(analysis.show_name || '');
@@ -210,78 +210,42 @@ function processPendingRows() {
   }
 }
 
-// Calls Gemini 2.0 Flash API with Structured JSON Schema output
-function callGeminiApi(scriptText, apiKey) {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+// Calls Groq Llama-3.1 API with JSON output mode
+function callGroqApi(scriptText, apiKey) {
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
   
   const systemInstruction = 
-    "Analyze the provided short-form romance/drama video script. Extract and categorize its tropes, core hooks, " +
-    "and opening details according to the CRACK framework. Return a structured JSON response.";
+    "You are a script analysis engine. Analyze the short-form romance/drama script and return a raw JSON object with the following keys:\n" +
+    "- 'show_name': Short name/title of the show or a fitting title\n" +
+    "- 'power_start': The verbatim first few sentences of the script (hook, approx 30s-1min of video, up to the cut point of tension)\n" +
+    "- 'power_start_trope': 3-7 words describing the opening trope (e.g., boss revealed in crisis, panicked plea for rescue)\n" +
+    "- 'power_start_promise': 1-sentence promise of the hook to a scrolling viewer\n" +
+    "- 'opening_conflict_type': One of: power_imbalance, physical_danger, secret_exposure, forbidden_desire, identity_threat, betrayal, moral_dilemma\n" +
+    "- 'dominant_genre_tags': Array of 2-4 tags, selected from: secret_pregnancy, forbidden_romance, workplace_power, humiliation_redemption, identity_reveal, revenge_arc, rescue_romance, rich_poor_divide, medical_drama, forced_proximity, possessive_hero, damsel_in_peril\n" +
+    "- 'core_promise': 1-sentence story promise / core driver.\n\n" +
+    "Return ONLY the raw JSON object. Do not wrap in markdown tags like ```json. Do not include any other text.";
 
   const promptText = 
-    "Analyze this short-form romance/drama video script. Identify the Show / Story name if mentioned or suggest a fitting title.\n\n" +
-    "SCRIPT:\n" + scriptText;
+    "Analyze this short-form romance/drama video script.\n\nSCRIPT:\n" + scriptText;
 
   const payload = {
-    contents: [
-      {
-        parts: [
-          { text: promptText }
-        ]
-      }
+    model: 'llama-3.1-8b-instant',
+    messages: [
+      { role: 'system', content: systemInstruction },
+      { role: 'user', content: promptText }
     ],
-    systemInstruction: {
-      parts: [
-        { text: systemInstruction }
-      ]
+    response_format: {
+      type: 'json_object'
     },
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          show_name: { 
-            type: 'STRING', 
-            description: 'Name of the show or a short fitting title' 
-          },
-          power_start: { 
-            type: 'STRING', 
-            description: 'The exact verbatim opening hook / first few lines from script (approx 30s-1min of video, up to the cut point of tension)' 
-          },
-          power_start_trope: { 
-            type: 'STRING', 
-            description: 'A 3-7 word description of the opening trope (e.g. boss revealed in crisis, panicked plea for rescue)' 
-          },
-          power_start_promise: { 
-            type: 'STRING', 
-            description: 'One sentence outlining what promise the opening hook makes to a scrolling viewer' 
-          },
-          opening_conflict_type: { 
-            type: 'STRING', 
-            enum: ['power_imbalance', 'physical_danger', 'secret_exposure', 'forbidden_desire', 'identity_threat', 'betrayal', 'moral_dilemma'],
-            description: 'The primary conflict type governing the opening hook'
-          },
-          dominant_genre_tags: { 
-            type: 'ARRAY', 
-            items: { type: 'STRING' },
-            description: '2 to 4 genre tags, selected from: secret_pregnancy, forbidden_romance, workplace_power, humiliation_redemption, identity_reveal, revenge_arc, rescue_romance, rich_poor_divide, medical_drama, forced_proximity, possessive_hero, damsel_in_peril'
-          },
-          core_promise: { 
-            type: 'STRING', 
-            description: '1-sentence summary of the main story promise / core driver' 
-          }
-        },
-        required: [
-          'show_name', 'power_start', 'power_start_trope', 'power_start_promise', 
-          'opening_conflict_type', 'dominant_genre_tags', 'core_promise'
-        ]
-      }
-    }
+    temperature: 0.2
   };
 
   const options = {
     method: 'post',
     contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey
+    },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   };
@@ -295,10 +259,10 @@ function callGeminiApi(scriptText, apiKey) {
   }
   
   const json = JSON.parse(responseText);
-  if (!json.candidates || json.candidates.length === 0 || !json.candidates[0].content || !json.candidates[0].content.parts[0].text) {
-    throw new Error('Invalid Gemini API response payload: ' + responseText);
+  if (!json.choices || json.choices.length === 0 || !json.choices[0].message || !json.choices[0].message.content) {
+    throw new Error('Invalid Groq API response payload: ' + responseText);
   }
   
-  const rawText = json.candidates[0].content.parts[0].text;
+  const rawText = json.choices[0].message.content.trim();
   return JSON.parse(rawText);
 }
