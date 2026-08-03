@@ -5177,6 +5177,52 @@ Be specific and precise. This is the north star for the adaptation.`;
     window._psa.analysis = txt;
     el.innerHTML = `
       <div class="card"><div class="clbl clbl-ac" style="margin-bottom:10px">Beat Map · What Made It Work · Mapping Table</div><div id="psa-step2-body"></div></div>
+      
+      <!-- Pocket FM & Hallucination Settings -->
+      <div class="card" style="background:var(--pu-bg);border-color:var(--pu-bd);padding:14px 18px">
+        <div style="font-size:13px;font-weight:700;color:var(--pu);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--pu)" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10v4a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-4a10 10 0 0 1 10-10z"></path></svg>
+          Pocket FM & Hallucination Settings
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--tx2);display:block;margin-bottom:4px">Target Format</label>
+            <select id="psa-format" style="width:100%;padding:8px 10px;border:1px solid var(--bdr);border-radius:var(--r);font-size:12px;background:#fff;color:var(--tx)">
+              <option value="standard">Standard Video Script</option>
+              <option value="pocketfm" selected>Pocket FM Audio Drama (with SFX Cues)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--tx2);display:block;margin-bottom:4px">Hallucination Scale (Sensationalism)</label>
+            <select id="psa-hallucination-level" style="width:100%;padding:8px 10px;border:1px solid var(--bdr);border-radius:var(--r);font-size:12px;background:#fff;color:var(--tx)">
+              <option value="faithful">Faithful (0% Hallucination)</option>
+              <option value="heightened">Heightened (50% Drama)</option>
+              <option value="sensational" selected>Sensational (100% Clickbait Twist)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--tx2);display:block;margin-bottom:6px">Hallucination Tropes to Inject</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:4px 8px;cursor:pointer">
+              <input type="checkbox" id="trope-billionaire" checked> Secret Billionaire / CEO
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:4px 8px;cursor:pointer">
+              <input type="checkbox" id="trope-pregnancy" checked> Secret Pregnancy / Hidden Heir
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:4px 8px;cursor:pointer">
+              <input type="checkbox" id="trope-revenge"> Revenge Reversal (Slap)
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:4px 8px;cursor:pointer">
+              <input type="checkbox" id="trope-marriage"> Forced Contract Marriage
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:4px 8px;cursor:pointer">
+              <input type="checkbox" id="trope-mate"> Werewolf / Fated Mate Bond
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="card" style="background:var(--am-bg);border-color:var(--am-bd)">
         <div style="font-size:12px;font-weight:600;color:var(--am);margin-bottom:6px">Writer Confirmation Required</div>
         <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">Review the mapping table. Add any corrections or redirections before proceeding.</div>
@@ -5193,6 +5239,52 @@ async function psaStep3() {
   const d = window._psa;
   if (!d) return;
   const notes = (document.getElementById('psa-notes')?.value || '').trim();
+  const format = document.getElementById('psa-format')?.value || 'standard';
+  const hallucinationLevel = document.getElementById('psa-hallucination-level')?.value || 'faithful';
+  
+  const tropes = [];
+  if (document.getElementById('trope-billionaire')?.checked) tropes.push('Secret Billionaire / Hidden CEO');
+  if (document.getElementById('trope-pregnancy')?.checked) tropes.push('Secret Pregnancy / Hidden Heir');
+  if (document.getElementById('trope-revenge')?.checked) tropes.push('Revenge Reversal (Slap)');
+  if (document.getElementById('trope-marriage')?.checked) tropes.push('Forced Contract Marriage');
+  if (document.getElementById('trope-mate')?.checked) tropes.push('Werewolf / Fated Mate Bond');
+
+  let pocketfmInstructions = "";
+  if (format === 'pocketfm') {
+    pocketfmInstructions = `
+[TARGET FORMAT: POCKET FM AUDIO DRAMA]
+- You MUST write this adaptation in the Pocket FM audio series promotional script format.
+- Heavily weave in explicit, dramatic sound effect cues (e.g. [SFX: slap], [SFX: glass shatter], [SFX: door crash], [SFX: crowd gasp], [SFX: wolf howl], [SFX: heartbeat], [SFX: low growl]) to punctuate key emotional beats.
+- Emphasize character dialogue and narrator voiceovers (NVO / FVO) that describe sensory details and raw emotion.
+- Dialogue format: [CHARACTER NAME]: "dialogue line"
+- Thought format: [CHARACTER NAME - internal]: "internal thoughts"
+`;
+  }
+
+  let hallucinationInstructions = "";
+  if (hallucinationLevel === 'faithful') {
+    hallucinationInstructions = `
+[HALLUCINATION SCALE: FAITHFUL (0%)]
+- Stay strictly faithful to the literal target script details and events. Do not invent any new twists or details.
+`;
+  } else if (hallucinationLevel === 'heightened') {
+    hallucinationInstructions = `
+[HALLUCINATION SCALE: HEIGHTENED (50%)]
+- Embellish and heighten the emotional conflict. Make dialogue and descriptions feel 2x more intense and dramatic.
+`;
+  } else if (hallucinationLevel === 'sensational') {
+    hallucinationInstructions = `
+[HALLUCINATION SCALE: SENSATIONAL (100% CLICKBAIT)]
+- You are encouraged to invent shocking, sensational twists and cliffhangers (i.e. 'hallucinations') that capture the core fantasy of the story in the most clickbaity way possible, even if they aren't literally present in the target script. Focus on creating an un-skippable hook.
+`;
+  }
+
+  if (tropes.length > 0) {
+    hallucinationInstructions += `
+- Specifically inject/hallucinate the following Pocket FM trope elements into this opening hook: ${tropes.join(', ')}.
+`;
+  }
+
   psaNav(3);
   const el = document.getElementById('psa-step3');
   el.style.display = 'flex';
@@ -5208,6 +5300,9 @@ ${d.cut}
 
 TARGET SCRIPT:
 ${d.target.substring(0,2500)}
+
+${pocketfmInstructions}
+${hallucinationInstructions}
 
 STEP 2 ANALYSIS:
 ${d.analysis}

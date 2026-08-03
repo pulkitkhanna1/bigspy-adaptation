@@ -285,6 +285,75 @@ Return ONLY a JSON response in the following format (no other text or markdown w
             selected_item = scored[0][0]
             
     print(f"\nSelected Asset #{selected_item['id']} for adaptation.")
+
+    # Pocket FM & Hallucination prompts
+    print("\nSelect Target Format:")
+    print("1. Standard Video Script")
+    print("2. Pocket FM Audio Drama (with SFX Cues & Narration)")
+    fmt_choice = input("Enter choice [default: 2]: ").strip()
+    target_format = "pocketfm" if fmt_choice != "1" else "standard"
+
+    print("\nSelect Hallucination Scale (Sensationalism):")
+    print("1. Faithful (0% Hallucination)")
+    print("2. Heightened (50% Drama)")
+    print("3. Sensational (100% Clickbait Twist)")
+    hal_choice = input("Enter choice [default: 3]: ").strip()
+    hallucination_level = "faithful" if hal_choice == "1" else "heightened" if hal_choice == "2" else "sensational"
+
+    tropes_to_inject = []
+    if hallucination_level != "faithful":
+        print("\nSelect Tropes to Inject (comma-separated numbers or press Enter for default):")
+        print("1. Secret Billionaire / Hidden CEO")
+        print("2. Secret Pregnancy / Hidden Heir")
+        print("3. Revenge Reversal (Slap)")
+        print("4. Forced Contract Marriage")
+        print("5. Werewolf / Fated Mate Bond")
+        trope_choices = input("Enter choices [default: 1,2]: ").strip()
+        if trope_choices == "":
+            trope_choices = "1,2"
+        
+        trope_map = {
+            "1": "Secret Billionaire / Hidden CEO",
+            "2": "Secret Pregnancy / Hidden Heir",
+            "3": "Revenge Reversal (Slap)",
+            "4": "Forced Contract Marriage",
+            "5": "Werewolf / Fated Mate Bond"
+        }
+        for ch in trope_choices.split(","):
+            ch = ch.strip()
+            if ch in trope_map:
+                tropes_to_inject.append(trope_map[ch])
+
+    pocketfm_instructions = ""
+    if target_format == "pocketfm":
+        pocketfm_instructions = """
+[TARGET FORMAT: POCKET FM AUDIO DRAMA]
+- You MUST write this adaptation in the Pocket FM audio series promotional script format.
+- Heavily weave in explicit, dramatic sound effect cues (e.g. [SFX: slap], [SFX: glass shatter], [SFX: door crash], [SFX: crowd gasp], [SFX: wolf howl], [SFX: heartbeat], [SFX: low growl]) to punctuate key emotional beats.
+- Emphasize character dialogue and narrator voiceovers (NVO / FVO) that describe sensory details and raw emotion.
+- Dialogue format: [CHARACTER NAME]: "dialogue line"
+- Thought format: [CHARACTER NAME - internal]: "internal thoughts"
+"""
+
+    hallucination_instructions = ""
+    if hallucination_level == "faithful":
+        hallucination_instructions = """
+[HALLUCINATION SCALE: FAITHFUL (0%)]
+- Stay strictly faithful to the literal target script details and events. Do not invent any new twists or details.
+"""
+    elif hallucination_level == "heightened":
+        hallucination_instructions = """
+[HALLUCINATION SCALE: HEIGHTENED (50%)]
+- Embellish and heighten the emotional conflict. Make dialogue and descriptions feel 2x more intense and dramatic.
+"""
+    elif hallucination_level == "sensational":
+        hallucination_instructions = """
+[HALLUCINATION SCALE: SENSATIONAL (100% CLICKBAIT)]
+- You are encouraged to invent shocking, sensational twists and cliffhangers (i.e. 'hallucinations') that capture the core fantasy of the story in the most clickbaity way possible, even if they aren't literally present in the target script. Focus on creating an un-skippable hook.
+"""
+
+    if tropes_to_inject:
+        hallucination_instructions += f"\n- Specifically inject/hallucinate the following Pocket FM trope elements into this opening hook: {', '.join(tropes_to_inject)}.\n"
     
     # 4. Perform Adaptation
     print("\n----------------------------------------------------")
@@ -295,26 +364,26 @@ Return ONLY a JSON response in the following format (no other text or markdown w
     
     # Step 3A: PSA Step 2 Analysis
     psa_step2_prompt = f"""You are the PS Adaptor tool (v2.2). Perform Step 2 of a 3-step PS adaptation.
-
+ 
 SOURCE SCRIPT (Asset #{selected_item['id']}):
 {source_script}
-
+ 
 TARGET SCRIPT:
 {target_lines}
-
+ 
 Produce all three parts:
-
+ 
 ## BEAT MAP
 List every beat in the source PS in order. For each:
 - Beat # | Function label | Sentence rhythm (short/medium/long) | Intensity (1–5) | Voice register
-
+ 
 ## WHAT MADE IT WORK
 2–3 sentences diagnosing the specific emotional mechanism. Not a plot summary — a precise identification of what makes this PS irresistible.
-
+ 
 ## MAPPING TABLE
 Map every show-specific element (names, institutions, objects, ceremonies, power systems). Use format:
 | Source Element | Functional Role | Why It Matters for Impact | Target Show Equivalent | Matchable? (YES/DROP) |
-
+ 
 ## UNIQUE SELLING ELEMENT
 Identify the single strongest selling element from the FIRST QUARTER of the TARGET SCRIPT.
 """
@@ -334,16 +403,19 @@ Identify the single strongest selling element from the FIRST QUARTER of the TARG
     print("----------------------------------------------------")
     
     psa_step3_prompt = f"""You are the PS Adaptor tool (v2.2). Write the adapted PS (Step 3).
-
+ 
 SOURCE SCRIPT (Asset #{selected_item['id']}):
 {source_script}
-
+ 
 TARGET SCRIPT:
 {target_lines}
 
+{pocketfm_instructions}
+{hallucination_instructions}
+ 
 STEP 2 ANALYSIS:
 {step2_analysis}
-
+ 
 LENGTH CONSTRAINT: Max 16 lines.
 Checklist of rules to follow:
 1. Max 16 lines.
@@ -354,10 +426,10 @@ Checklist of rules to follow:
 6. Opening line has 7 words or fewer.
 7. Matches target script format.
 8. Speaker labels like [CHARACTER]: or [CHARACTER - internal]:.
-
+ 
 ## ADAPTED PS — ASSET #{selected_item['id']} → TARGET SHOW
 [Write the script here]
-
+ 
 ---
 ## MERGE LINE
 Find the exact line in the TARGET SCRIPT that comes immediately after the hook hand-off.
