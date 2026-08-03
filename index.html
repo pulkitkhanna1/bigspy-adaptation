@@ -883,6 +883,7 @@ textarea:focus{border-color:var(--ac);background:#fff}
     <button class="ntab on" onclick="goTab('kb',this)">KB Builder</button>
     <button class="ntab" onclick="goTab('browser',this)">Script Browser</button>
     <button class="ntab" onclick="goTab('adapt',this)">Adaptation Model</button>
+    <button class="ntab" onclick="goTab('classifier',this)">Archetype Classifier</button>
   </div>
   <div class="topbar-right">
     <div style="display:flex;align-items:center;gap:6px">
@@ -3854,6 +3855,115 @@ textarea:focus{border-color:var(--ac);background:#fff}
   </div>
 </div>
 
+<!-- ══════════════════════ TAB: ARCHETYPE CLASSIFIER ══════════════════════ -->
+<div class="page" id="page-classifier">
+  <div class="full" style="max-width:860px;margin:0 auto">
+    
+    <div style="background:var(--pu-bg);border:1px solid var(--pu-bd);border-radius:var(--rl);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:10px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--pu)" stroke-width="2" style="vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line></svg>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--tx)">Pocket FM Promo Opening Classifier</div>
+        <div style="font-size:12px;color:var(--tx2);margin-top:2px">Classify promotional script hooks into BEAST SHOW or ZERO TO HERO adaptation archetypes.</div>
+      </div>
+    </div>
+
+    <!-- Grid: Single vs Batch -->
+    <div style="display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:18px">
+      
+      <!-- Single Script Classifier -->
+      <div class="card">
+        <div class="clbl">Single Script Hook Classifier</div>
+        <textarea id="cls-single-txt" rows="5" placeholder="Paste script here to identify its narrative DNA..."></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+          <button class="btn btn-dk" onclick="runSingleClassification()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Classify Opening
+          </button>
+        </div>
+        
+        <!-- Single Result -->
+        <div id="cls-single-result" style="display:none;margin-top:14px;padding:14px 16px;background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase">Classification Result</span>
+            <span id="cls-res-confidence" class="pill" style="font-size:10px">Confidence: -</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span id="cls-res-archetype" class="pill" style="font-size:14px;font-weight:700;padding:6px 12px">BEAST SHOW</span>
+          </div>
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:6px"><strong style="color:var(--tx)">Core Hook:</strong> <span id="cls-res-hook">—</span></div>
+          <div style="font-size:13px;color:var(--tx2);background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:8px 12px;line-height:1.5"><strong style="color:var(--tx)">Adaptation Rationale:</strong> <span id="cls-res-rationale">—</span></div>
+        </div>
+        <div id="cls-single-status" style="display:none" class="status"><div class="spin"></div><span>Analyzing hook mechanism...</span></div>
+        <div id="cls-single-err" style="display:none" class="errbar"></div>
+      </div>
+
+      <!-- Batch Classifier -->
+      <div class="card">
+        <div class="clbl">Batch Script Hook Classifier</div>
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:12px;line-height:1.5">
+          Run batch classification on historical scripts. This uses Groq rate limits carefully with a 5-second spacer between scripts.
+        </div>
+        
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--tx3);display:block;margin-bottom:4px">Batch Sample Size</label>
+            <select id="cls-batch-size" style="padding:6px 10px;border:1px solid var(--bdr);border-radius:var(--r);font-size:12px;background:#fff;color:var(--tx)">
+              <option value="5">Next 5 scripts</option>
+              <option value="10" selected>Next 10 scripts</option>
+              <option value="20">Next 20 scripts</option>
+              <option value="50">Next 50 scripts</option>
+            </select>
+          </div>
+          <button class="btn btn-dk" id="cls-batch-btn" onclick="runBatchClassification()" style="align-self:flex-end">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Start Batch Classification
+          </button>
+        </div>
+        
+        <!-- Batch Progress -->
+        <div id="cls-batch-progress" style="display:none;margin-top:14px;background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);padding:12px 14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+            <span id="cls-batch-status-text">Processing...</span>
+            <span id="cls-batch-count-text">0 / 0</span>
+          </div>
+          <div style="width:100%;height:6px;background:var(--bdr);border-radius:3px;overflow:hidden">
+            <div id="cls-batch-progressbar" style="width:0%;height:100%;background:var(--pu);border-radius:3px;transition:width 0.3s"></div>
+          </div>
+        </div>
+
+        <div id="cls-batch-err" style="display:none;margin-top:10px" class="errbar"></div>
+
+        <!-- Batch Output Table -->
+        <div id="cls-batch-table-container" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--bdr)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-size:12px;font-weight:700;color:var(--tx)">Batch Results</div>
+            <button class="btn" onclick="exportClassifierCSV()" style="padding:6px 12px;font-size:11px;font-weight:600">Export CSV</button>
+          </div>
+          <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--bdr);border-radius:var(--r)">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+              <thead>
+                <tr style="background:var(--s3);border-bottom:1px solid var(--bdr)">
+                  <th style="padding:8px 10px;font-weight:600;width:60px">Asset ID</th>
+                  <th style="padding:8px 10px;font-weight:600;width:120px">Archetype</th>
+                  <th style="padding:8px 10px;font-weight:600;width:80px">Confidence</th>
+                  <th style="padding:8px 10px;font-weight:600">Core Hook</th>
+                  <th style="padding:8px 10px;font-weight:600">Rationale</th>
+                </tr>
+              </thead>
+              <tbody id="cls-batch-tbody">
+                <!-- Rows dynamically generated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
 <script id="kb-data" type="application/json"></script>
 
 <script>
@@ -5749,6 +5859,200 @@ function psaNav(n) {
   });
 }
 
+
+// ══ ARCHETYPE CLASSIFIER MODULE ══════════════════════
+async function runSingleClassification() {
+  const text = document.getElementById('cls-single-txt').value.trim();
+  if (!text) { alert('Please paste a script first.'); return; }
+  
+  document.getElementById('cls-single-status').style.display = 'flex';
+  document.getElementById('cls-single-result').style.display = 'none';
+  document.getElementById('cls-single-err').style.display = 'none';
+  
+  try {
+    const prompt = `You are a senior performance marketing creative strategist and promo adaptation classifier for Pocket FM.
+Your job is to identify the creative DNA of this promo opening and classify it into one of two Pocket FM adaptation archetypes:
+BEAST SHOW or ZERO TO HERO.
+
+RULES:
+- BEAST SHOW: Power/status/identity is already present/latent and revealed or flexed. Emotional engine: Underestimation -> Reveal -> Dominance.
+- ZERO TO HERO: Journey from weakness, poverty, disadvantage, failure, or humiliation to power/status. Emotional engine: Weakness -> Rise.
+
+Analyze this script:
+"${text}"
+
+Return a JSON object in this exact format (no markdown):
+{
+  "pocket_fm_archetype": "BEAST SHOW" or "ZERO TO HERO",
+  "core_hook": "One short sentence describing the underlying hook",
+  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words",
+  "confidence": "HIGH" or "MEDIUM" or "LOW"
+}`;
+
+    const res = await callClaude(prompt, 1000);
+    
+    // Display results
+    const archEl = document.getElementById('cls-res-archetype');
+    archEl.textContent = res.pocket_fm_archetype || 'UNKNOWN';
+    if (res.pocket_fm_archetype === 'BEAST SHOW') {
+      archEl.className = 'pill p-pu';
+    } else {
+      archEl.className = 'pill p-gr';
+    }
+    
+    const confEl = document.getElementById('cls-res-confidence');
+    confEl.textContent = 'Confidence: ' + (res.confidence || 'HIGH');
+    if (res.confidence === 'HIGH') confEl.className = 'pill p-gr';
+    else if (res.confidence === 'MEDIUM') confEl.className = 'pill p-am';
+    else confEl.className = 'pill p-re';
+    
+    document.getElementById('cls-res-hook').textContent = res.core_hook || '—';
+    document.getElementById('cls-res-rationale').textContent = res.archetype_rationale || '—';
+    
+    document.getElementById('cls-single-status').style.display = 'none';
+    document.getElementById('cls-single-result').style.display = 'block';
+  } catch (e) {
+    document.getElementById('cls-single-status').style.display = 'none';
+    document.getElementById('cls-single-err').style.display = 'block';
+    document.getElementById('cls-single-err').textContent = 'Error: ' + e.message;
+  }
+}
+
+window._classifiedBatchResults = [];
+
+async function runBatchClassification() {
+  const size = parseInt(document.getElementById('cls-batch-size').value) || 5;
+  const btn = document.getElementById('cls-batch-btn');
+  btn.disabled = true;
+  
+  const progressDiv = document.getElementById('cls-batch-progress');
+  const progressBar = document.getElementById('cls-batch-progressbar');
+  const statusText = document.getElementById('cls-batch-status-text');
+  const countText = document.getElementById('cls-batch-count-text');
+  const errDiv = document.getElementById('cls-batch-err');
+  const tableContainer = document.getElementById('cls-batch-table-container');
+  const tbody = document.getElementById('cls-batch-tbody');
+  
+  progressDiv.style.display = 'block';
+  errDiv.style.display = 'none';
+  tableContainer.style.display = 'none';
+  tbody.innerHTML = '';
+  
+  // Find scripts that are not yet classified, or just take the first N from ASSETS
+  const candidates = ASSETS.filter(a => a.valid).slice(0, size);
+  if (candidates.length === 0) {
+    alert('No scripts found to classify.');
+    btn.disabled = false;
+    progressDiv.style.display = 'none';
+    return;
+  }
+  
+  window._classifiedBatchResults = [];
+  countText.textContent = `0 / ${candidates.length}`;
+  progressBar.style.width = '0%';
+  
+  for (let i = 0; i < candidates.length; i++) {
+    const asset = candidates[i];
+    const scriptText = SCRIPT_DUMP[asset.id] || SCRIPT_DUMP[String(asset.id)] || '';
+    
+    statusText.textContent = `Classifying Asset #${asset.id}...`;
+    progressBar.style.width = `${Math.round(((i) / candidates.length) * 100)}%`;
+    countText.textContent = `${i} / ${candidates.length}`;
+    
+    try {
+      const prompt = `You are a senior performance marketing creative strategist and promo adaptation classifier for Pocket FM.
+Your job is to identify the creative DNA of this promo opening and classify it into one of two Pocket FM adaptation archetypes:
+BEAST SHOW or ZERO TO HERO.
+
+RULES:
+- BEAST SHOW: Power/status/identity is already present/latent and revealed or flexed. Emotional engine: Underestimation -> Reveal -> Dominance.
+- ZERO TO HERO: Journey from weakness, poverty, disadvantage, failure, or humiliation to power/status. Emotional engine: Weakness -> Rise.
+
+Analyze this script:
+"${scriptText}"
+
+Return a JSON object in this exact format (no markdown):
+{
+  "pocket_fm_archetype": "BEAST SHOW" or "ZERO TO HERO",
+  "core_hook": "One short sentence describing the underlying hook",
+  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words",
+  "confidence": "HIGH" or "MEDIUM" or "LOW"
+}`;
+
+      const res = await callClaude(prompt, 1000);
+      const classification = {
+        row_id: asset.id,
+        original_opening: scriptText.substring(0, 100) + '...',
+        bucket: res.pocket_fm_archetype || 'UNKNOWN',
+        core_hook: res.core_hook || '—',
+        adaptation_rationale: res.archetype_rationale || '—',
+        confidence: res.confidence || 'HIGH'
+      };
+      
+      window._classifiedBatchResults.push(classification);
+      
+      // Append row to table
+      const confClass = classification.confidence === 'HIGH' ? 'p-gr' : (classification.confidence === 'MEDIUM' ? 'p-am' : 'p-re');
+      const archClass = classification.bucket === 'BEAST SHOW' ? 'p-pu' : 'p-gr';
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--bdr)';
+      tr.innerHTML = `
+        <td style="padding:8px 10px;font-weight:600">${classification.row_id}</td>
+        <td style="padding:8px 10px"><span class="pill ${archClass}">${classification.bucket}</span></td>
+        <td style="padding:8px 10px"><span class="pill ${confClass}">${classification.confidence}</span></td>
+        <td style="padding:8px 10px">${esc(classification.core_hook)}</td>
+        <td style="padding:8px 10px;color:var(--tx2)">${esc(classification.adaptation_rationale)}</td>
+      `;
+      tbody.appendChild(tr);
+      tableContainer.style.display = 'block';
+    } catch (e) {
+      console.error(e);
+      // Log error but continue the batch
+    }
+    
+    // Spacing between requests (5 seconds rate limiting for Groq TPM)
+    if (i < candidates.length - 1) {
+      for (let s = 5; s > 0; s--) {
+        statusText.textContent = `Rate Limit Pause: Retrying next in ${s}s...`;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  }
+  
+  progressBar.style.width = '100%';
+  countText.textContent = `${candidates.length} / ${candidates.length}`;
+  statusText.textContent = 'Batch completed successfully!';
+  btn.disabled = false;
+}
+
+function exportClassifierCSV() {
+  if (window._classifiedBatchResults.length === 0) {
+    alert('No results to export.');
+    return;
+  }
+  
+  let csvContent = 'data:text/csv;charset=utf-8,';
+  csvContent += 'Row ID,Bucket,Confidence,Core Hook,Adaptation Rationale\n';
+  
+  window._classifiedBatchResults.forEach(r => {
+    const row = [
+      r.row_id,
+      r.bucket,
+      r.confidence,
+      `"${r.core_hook.replace(/"/g, '""')}"`,
+      `"${r.adaptation_rationale.replace(/"/g, '""')}"`
+    ].join(',');
+    csvContent += row + '\n';
+  });
+  
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', 'pocketfm_classifications.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
 // Store page source before any dynamic mutations — used by downloadSnapshot
 try { window._SRC = document.documentElement.outerHTML; } catch(e) {}

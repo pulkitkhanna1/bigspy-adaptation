@@ -200,6 +200,84 @@ def local_pre_score(item, blueprint):
             
     return score
 
+def run_cli_batch_classifier(database, api_key):
+    print("\n----------------------------------------------------")
+    print("Pocket FM Promo Opening Classifier — Batch Mode")
+    print("----------------------------------------------------")
+    
+    try:
+        limit = int(input("Enter number of scripts to classify [default: 10]: ").strip() or "10")
+    except ValueError:
+        limit = 10
+        
+    to_classify = database[:limit]
+    results = []
+    
+    print(f"\nStarting batch classification for {len(to_classify)} scripts...")
+    import time
+    
+    for idx, row in enumerate(to_classify):
+        row_id = row.get("id") or str(idx + 1)
+        script_text = row.get("script") or ""
+        
+        print(f"\n[{idx+1}/{len(to_classify)}] Classifying Asset #{row_id}...")
+        
+        prompt = f"""You are a senior performance marketing creative strategist and promo adaptation classifier for Pocket FM.
+Your job is to identify the creative DNA of this promo opening and classify it into one of two Pocket FM adaptation archetypes:
+BEAST SHOW or ZERO TO HERO.
+
+RULES:
+- BEAST SHOW: Power/status/identity is already present/latent and revealed or flexed. Emotional engine: Underestimation -> Reveal -> Dominance.
+- ZERO TO HERO: Journey from weakness, poverty, disadvantage, failure, or humiliation to power/status. Emotional engine: Weakness -> Rise.
+
+Analyze this script:
+"{script_text}"
+
+Return a JSON object in this exact format (no markdown):
+{{
+  "pocket_fm_archetype": "BEAST SHOW" or "ZERO TO HERO",
+  "core_hook": "One short sentence describing the underlying hook",
+  "archetype_rationale": "Concise explanation of why it maps to this bucket, max 25 words",
+  "confidence": "HIGH" or "MEDIUM" or "LOW"
+}}"""
+
+        try:
+            res_text = call_groq_api(prompt, api_key, json_mode=True)
+            res = json.loads(res_text.strip())
+            
+            classification = {
+                "Row ID": row_id,
+                "Original Opening": script_text[:100] + "...",
+                "Bucket": res.get("pocket_fm_archetype", "UNKNOWN"),
+                "Core Hook": res.get("core_hook", "—"),
+                "Adaptation Rationale": res.get("archetype_rationale", "—"),
+                "Confidence": res.get("confidence", "HIGH")
+            }
+            results.append(classification)
+            
+            print(f"  -> Bucket: {classification['Bucket']} (Confidence: {classification['Confidence']})")
+            print(f"  -> Core Hook: {classification['Core Hook']}")
+            print(f"  -> Rationale: {classification['Adaptation Rationale']}")
+        except Exception as e:
+            print(f"  Error classifying row: {e}")
+            
+        # Spacing rate limiting (5 seconds for Groq TPM)
+        if idx < len(to_classify) - 1:
+            time.sleep(5)
+            
+    # Save to CSV
+    output_csv = "classified_promos.csv"
+    headers = ["Row ID", "Original Opening", "Bucket", "Core Hook", "Adaptation Rationale", "Confidence"]
+    
+    with open(output_csv, mode="w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(results)
+        
+    print("\n----------------------------------------------------")
+    print(f"Batch classification complete! Saved to '{output_csv}'")
+    print("----------------------------------------------------")
+
 def main():
     print("====================================================")
     print("      BigSpy Adaptation Engine — CLI Tool")
@@ -221,6 +299,15 @@ def main():
         csv_path = DEFAULT_CSV_PATH
     database = load_database(csv_path)
     
+    print("\nSelect Mode:")
+    print("1. Run 3-Step Script Adaptation Pipeline")
+    print("2. Run Batch Classifier (BEAST SHOW vs ZERO TO HERO)")
+    mode_choice = input("Enter mode choice [default: 1]: ").strip()
+    
+    if mode_choice == "2":
+        run_cli_batch_classifier(database, api_key)
+        return
+
     # 3. Input Target Script
     print("\n----------------------------------------------------")
     print("Paste your TARGET SCRIPT (press Ctrl+D or Ctrl+Z on a blank line when finished):")
