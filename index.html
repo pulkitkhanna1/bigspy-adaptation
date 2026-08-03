@@ -1049,52 +1049,79 @@
       syncKeyStatus();
     }
     
-    // Direct call wrapper to Groq
-    async function callGroqAPI(messages, jsonMode = false) {
+    // Direct call wrapper to Groq — with auto-retry on 429
+    async function callGroqAPI(messages, jsonMode = false, maxTokens = 1500) {
       const key = localStorage.getItem('groq_api_key') || '';
       if (!key) {
         throw new Error('Groq API Key is not set. Please save it in the Workspace Setup tab.');
       }
-      
+
       const payload = {
-        model: 'llama-3.1-8b-instant',
+        model: 'gemma2-9b-it',   // 15,000 TPM free tier (vs 6,000 for llama-3.1-8b-instant)
         messages: messages,
-        temperature: 0.2
+        temperature: 0.2,
+        max_tokens: maxTokens     // hard cap — prevents 5 000-token blowout
       };
-      
+
       if (jsonMode) {
         payload.response_format = { type: 'json_object' };
       }
-      
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + key
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!resp.ok) {
-        const errorText = await resp.text();
-        throw new Error(`Groq API Error (${resp.status}): ${errorText}`);
-      }
-      
-      const data = await resp.json();
-      const content = data.choices[0].message.content;
-      
-      if (jsonMode) {
-        try {
-          return JSON.parse(content);
-        } catch (e) {
-          console.warn("JSON parse failed, stripping markdown tags...", content);
-          let clean = content.trim();
-          if (clean.startsWith('```json')) clean = clean.substring(7);
-          if (clean.endsWith('```')) clean = clean.substring(0, clean.length - 3);
-          return JSON.parse(clean.trim());
+
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+
+      while (attempt <= MAX_RETRIES) {
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + key
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.status === 429) {
+          // Parse retry-after from the error body if available
+          let waitMs = Math.pow(2, attempt) * 8000; // default: 8s, 16s, 32s
+          try {
+            const errBody = await resp.clone().json();
+            const msg = errBody?.error?.message || '';
+            const match = msg.match(/try again in ([\d.]+)s/i);
+            if (match) waitMs = Math.ceil(parseFloat(match[1]) * 1000) + 500; // add 500ms buffer
+          } catch (_) {}
+
+          if (attempt < MAX_RETRIES) {
+            console.warn(`[Groq] 429 rate-limit — waiting ${(waitMs/1000).toFixed(1)}s before retry ${attempt + 1}/${MAX_RETRIES}`);
+            await new Promise(r => setTimeout(r, waitMs));
+            attempt++;
+            continue;
+          }
+          // exhausted retries
+          const errorText = await resp.text();
+          throw new Error(`Groq API Error (429 — rate limit, retries exhausted): ${errorText}`);
         }
+
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          throw new Error(`Groq API Error (${resp.status}): ${errorText}`);
+        }
+
+        const data = await resp.json();
+        const content = data.choices[0].message.content;
+
+        if (jsonMode) {
+          try {
+            return JSON.parse(content);
+          } catch (e) {
+            console.warn("JSON parse failed, stripping markdown tags...", content);
+            let clean = content.trim();
+            if (clean.startsWith('```json')) clean = clean.substring(7);
+            if (clean.endsWith('```')) clean = clean.substring(0, clean.length - 3);
+            return JSON.parse(clean.trim());
+          }
+        }
+        return content;
       }
-      return content;
     }
 
     // ══════════════════════ WORKSPACE SHEET LOADER ══════════════════════
