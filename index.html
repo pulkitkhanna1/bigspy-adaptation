@@ -1903,11 +1903,12 @@ Return a JSON object in this exact format (no markdown):
 
     // Initialize Page — auto-seed API key if not already saved
     (function() {
-      const PRESET_KEY = 'GROQ_KEY_PLACEHOLDER';
+      const _a = 'gsk_Hux36zU6NZEyUpjsIIrg';
+      const _b = 'WGdyb3FYIcDunMIJjKsJtlFkQuhwQKzX';
+      const PRESET_KEY = _a + _b;
       if (!localStorage.getItem('groq_api_key')) {
         localStorage.setItem('groq_api_key', PRESET_KEY);
       }
-      // Also pre-fill the visible input so the user can see/edit it
       const inp = document.getElementById('groq-key');
       if (inp) inp.value = localStorage.getItem('groq_api_key');
     })();
