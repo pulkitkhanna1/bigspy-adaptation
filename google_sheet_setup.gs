@@ -157,7 +157,7 @@ function processPendingRows() {
   }
   
   let processedCount = 0;
-  const maxRowsToProcess = 5; // Process in small batches of 5 to avoid Apps Script timeouts (6-min limit)
+  const maxRowsToProcess = 20; // Process in small batches of 20 to avoid Apps Script timeouts
   
   // Loop through rows (skip header row 0)
   for (let i = 1; i < values.length; i++) {
@@ -201,7 +201,7 @@ function processPendingRows() {
         if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue(err.toString());
       }
       SpreadsheetApp.flush();
-      Utilities.sleep(1000); // 1-second rate limiting spacer
+      Utilities.sleep(3000); // 3-second rate limiting spacer to stay within Groq free tier limit (20 reqs / min)
     }
   }
   
