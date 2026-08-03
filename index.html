@@ -1505,17 +1505,19 @@ ${scriptSnippet}`;
       
       const targetTags = new Set(blueprint.genre_tags || []);
       const matches = [];
+      const maxPossibleScore = 3 + (targetTags.size > 0 ? targetTags.size * 2 : 6);
       
       // Rank database items by overlapping genre tags
       Object.entries(kb).forEach(([id, item]) => {
-        let score = 0;
-        if (item.opening_conflict_type === blueprint.conflict_type) score += 3;
+        let rawScore = 0;
+        if (item.opening_conflict_type === blueprint.conflict_type) rawScore += 3;
         if (Array.isArray(item.dominant_genre_tags)) {
           item.dominant_genre_tags.forEach(t => {
-            if (targetTags.has(t)) score += 2;
+            if (targetTags.has(t)) rawScore += 2;
           });
         }
-        matches.push({ id: parseInt(id), score, item });
+        const scoreTen = Math.min(10, Math.max(1, Math.round((rawScore / maxPossibleScore) * 10)));
+        matches.push({ id: parseInt(id), score: scoreTen, rawScore, item });
       });
       
       matches.sort((a, b) => b.score - a.score);
@@ -1528,13 +1530,15 @@ ${scriptSnippet}`;
         itemBox.style.flexDirection = 'column';
         itemBox.style.justifyContent = 'space-between';
         
+        const pillClass = m.score >= 8 ? 'pill-green' : (m.score >= 5 ? 'pill-purple' : 'pill-amber');
+        
         itemBox.innerHTML = `
           <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <strong style="color:#fff">Asset #${m.id}</strong>
-              <span class="pill pill-green" style="font-size:9px">Score: ${m.score}</span>
+              <span class="pill ${pillClass}" style="font-size:10px;font-weight:700">Match: ${m.score}/10</span>
             </div>
-            <div style="font-size:11px;color:var(--text-muted);line-height:1.4">${m.item.power_start_trope}</div>
+            <div style="font-size:11px;color:var(--text-muted);line-height:1.4">${m.item.power_start_trope || 'Standard Hook'}</div>
           </div>
           <button class="btn btn-secondary" style="padding:6px 12px;font-size:11px;width:100%;margin-top:12px" onclick="selectMatchTemplate(${m.id})">Use Backbone</button>
         `;
