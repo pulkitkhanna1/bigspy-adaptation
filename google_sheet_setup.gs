@@ -157,7 +157,7 @@ function processPendingRows() {
   }
   
   let processedCount = 0;
-  const maxRowsToProcess = 20; // Process in small batches of 20 to avoid Apps Script timeouts
+  const maxRowsToProcess = 10; // Process in small batches of 10 to stay within token-per-minute limits
   
   // Loop through rows (skip header row 0)
   for (let i = 1; i < values.length; i++) {
@@ -201,7 +201,7 @@ function processPendingRows() {
         if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue(err.toString());
       }
       SpreadsheetApp.flush();
-      Utilities.sleep(3000); // 3-second rate limiting spacer to stay within Groq free tier limit (20 reqs / min)
+      Utilities.sleep(5000); // 5-second rate limiting spacer to distribute token usage evenly
     }
   }
   
@@ -210,7 +210,7 @@ function processPendingRows() {
   }
 }
 
-// Calls Groq Llama-3.1 API with JSON output mode
+// Calls Groq Llama-3.1 API with JSON output mode and auto-retry on 429 rate limits
 function callGroqApi(scriptText, apiKey) {
   const url = 'https://api.groq.com/openai/v1/chat/completions';
   
@@ -250,19 +250,34 @@ function callGroqApi(scriptText, apiKey) {
     muteHttpExceptions: true
   };
 
-  const response = UrlFetchApp.fetch(url, options);
-  const responseCode = response.getResponseCode();
-  const responseText = response.getContentText();
+  let attempts = 0;
+  const maxAttempts = 3;
   
-  if (responseCode !== 200) {
+  while (attempts < maxAttempts) {
+    attempts++;
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    
+    if (responseCode === 200) {
+      const json = JSON.parse(responseText);
+      if (!json.choices || json.choices.length === 0 || !json.choices[0].message || !json.choices[0].message.content) {
+        throw new Error('Invalid Groq API response payload: ' + responseText);
+      }
+      const rawText = json.choices[0].message.content.trim();
+      return JSON.parse(rawText);
+    }
+    
+    if (responseCode === 429) {
+      if (attempts < maxAttempts) {
+        console.log('Rate limit hit (429). Waiting 15 seconds before retry attempt ' + attempts + '...');
+        Utilities.sleep(15000); // Sleep for 15 seconds to let the TPM window reset
+        continue;
+      } else {
+        throw new Error('Rate limit exceeded (429) after ' + maxAttempts + ' attempts. Please try again in a minute.');
+      }
+    }
+    
     throw new Error('API Error (HTTP ' + responseCode + '): ' + responseText);
   }
-  
-  const json = JSON.parse(responseText);
-  if (!json.choices || json.choices.length === 0 || !json.choices[0].message || !json.choices[0].message.content) {
-    throw new Error('Invalid Groq API response payload: ' + responseText);
-  }
-  
-  const rawText = json.choices[0].message.content.trim();
-  return JSON.parse(rawText);
 }
