@@ -127,6 +127,7 @@ function processPendingRows() {
   // Map column indices based on header names
   const colIndex = {
     id: headers.indexOf('id'),
+    promoLink: headers.indexOf('promo link'),
     show: headers.indexOf('show'),
     script: headers.indexOf('script'),
     powerStart: headers.indexOf('power start'),
@@ -164,41 +165,68 @@ function processPendingRows() {
     if (processedCount >= maxRowsToProcess) break;
     
     const rowNum = i + 1;
-    const scriptVal = String(values[i][colIndex.script]).trim();
+    const promoLinkVal = colIndex.promoLink !== -1 ? String(values[i][colIndex.promoLink]).trim() : '';
+    let scriptVal = String(values[i][colIndex.script]).trim();
     const statusVal = colIndex.status !== -1 ? String(values[i][colIndex.status]).trim().toLowerCase() : '';
     const tropeVal = colIndex.powerStartTrope !== -1 ? String(values[i][colIndex.powerStartTrope]).trim() : '';
     
-    // Check if script exists and is not yet processed (status is empty/Pending/Failed AND no trope yet)
-    if (scriptVal.length > 5 && (!statusVal || statusVal === 'pending' || statusVal === 'failed') && !tropeVal) {
-      if (colIndex.status !== -1) {
-        sheet.getRange(rowNum, colIndex.status + 1).setValue('Processing...');
-        SpreadsheetApp.flush();
+    // Determine if we need to process this row
+    const needsTranscription = (!scriptVal || scriptVal.length <= 5) && promoLinkVal.startsWith('http') && (!statusVal || statusVal === 'pending' || statusVal === 'failed');
+    const needsAnalysis = scriptVal.length > 5 && (!statusVal || statusVal === 'pending' || statusVal === 'failed') && !tropeVal;
+    
+    if (needsTranscription || needsAnalysis) {
+      let success = true;
+      
+      // Step 1: Transcribe if script is empty and video link is available
+      if (needsTranscription) {
+        if (colIndex.status !== -1) {
+          sheet.getRange(rowNum, colIndex.status + 1).setValue('Transcribing...');
+          SpreadsheetApp.flush();
+        }
+        try {
+          scriptVal = transcribeVideo(promoLinkVal, apiKey);
+          if (colIndex.script !== -1) {
+            sheet.getRange(rowNum, colIndex.script + 1).setValue(scriptVal);
+            SpreadsheetApp.flush();
+          }
+        } catch (err) {
+          success = false;
+          Logger.log('Transcription Error row ' + rowNum + ': ' + err.toString());
+          if (colIndex.status !== -1) sheet.getRange(rowNum, colIndex.status + 1).setValue('Failed');
+          if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue('Transcription failed: ' + err.toString());
+        }
       }
       
-      try {
-        const analysis = callGroqApi(scriptVal, apiKey);
-        
-        // Write results to sheet
-        if (colIndex.show !== -1) sheet.getRange(rowNum, colIndex.show + 1).setValue(analysis.show_name || '');
-        if (colIndex.powerStart !== -1) sheet.getRange(rowNum, colIndex.powerStart + 1).setValue(analysis.power_start || '');
-        if (colIndex.powerStartTrope !== -1) sheet.getRange(rowNum, colIndex.powerStartTrope + 1).setValue(analysis.power_start_trope || '');
-        if (colIndex.powerStartPromise !== -1) sheet.getRange(rowNum, colIndex.powerStartPromise + 1).setValue(analysis.power_start_promise || '');
-        if (colIndex.conflictType !== -1) sheet.getRange(rowNum, colIndex.conflictType + 1).setValue(analysis.opening_conflict_type || '');
-        if (colIndex.genreTags !== -1) {
-          const tags = Array.isArray(analysis.dominant_genre_tags) ? analysis.dominant_genre_tags.join(', ') : (analysis.dominant_genre_tags || '');
-          sheet.getRange(rowNum, colIndex.genreTags + 1).setValue(tags);
+      // Step 2: Analyze script if script is now available
+      if (success && scriptVal && scriptVal.length > 5) {
+        if (colIndex.status !== -1) {
+          sheet.getRange(rowNum, colIndex.status + 1).setValue('Analyzing...');
+          SpreadsheetApp.flush();
         }
-        if (colIndex.corePromise !== -1) sheet.getRange(rowNum, colIndex.corePromise + 1).setValue(analysis.core_promise || '');
-        
-        if (colIndex.status !== -1) sheet.getRange(rowNum, colIndex.status + 1).setValue('Processed');
-        if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue('');
-        
-        processedCount++;
-        
-      } catch (err) {
-        Logger.log('Error row ' + rowNum + ': ' + err.toString());
-        if (colIndex.status !== -1) sheet.getRange(rowNum, colIndex.status + 1).setValue('Failed');
-        if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue(err.toString());
+        try {
+          const analysis = callGroqApi(scriptVal, apiKey);
+          
+          // Write results to sheet
+          if (colIndex.show !== -1) sheet.getRange(rowNum, colIndex.show + 1).setValue(analysis.show_name || '');
+          if (colIndex.powerStart !== -1) sheet.getRange(rowNum, colIndex.powerStart + 1).setValue(analysis.power_start || '');
+          if (colIndex.powerStartTrope !== -1) sheet.getRange(rowNum, colIndex.powerStartTrope + 1).setValue(analysis.power_start_trope || '');
+          if (colIndex.powerStartPromise !== -1) sheet.getRange(rowNum, colIndex.powerStartPromise + 1).setValue(analysis.power_start_promise || '');
+          if (colIndex.conflictType !== -1) sheet.getRange(rowNum, colIndex.conflictType + 1).setValue(analysis.opening_conflict_type || '');
+          if (colIndex.genreTags !== -1) {
+            const tags = Array.isArray(analysis.dominant_genre_tags) ? analysis.dominant_genre_tags.join(', ') : (analysis.dominant_genre_tags || '');
+            sheet.getRange(rowNum, colIndex.genreTags + 1).setValue(tags);
+          }
+          if (colIndex.corePromise !== -1) sheet.getRange(rowNum, colIndex.corePromise + 1).setValue(analysis.core_promise || '');
+          
+          if (colIndex.status !== -1) sheet.getRange(rowNum, colIndex.status + 1).setValue('Processed');
+          if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue('');
+          
+          processedCount++;
+        } catch (err) {
+          Logger.log('Analysis Error row ' + rowNum + ': ' + err.toString());
+          if (colIndex.status !== -1) sheet.getRange(rowNum, colIndex.status + 1).setValue('Failed');
+          if (colIndex.errorMsg !== -1) sheet.getRange(rowNum, colIndex.errorMsg + 1).setValue('Analysis failed: ' + err.toString());
+        }
       }
       SpreadsheetApp.flush();
       Utilities.sleep(5000); // 5-second rate limiting spacer to distribute token usage evenly
@@ -279,5 +307,63 @@ function callGroqApi(scriptText, apiKey) {
     }
     
     throw new Error('API Error (HTTP ' + responseCode + '): ' + responseText);
+  }
+}
+
+// Calls Groq Audio Transcription API with auto-retry on 429 rate limits
+function transcribeVideo(videoUrl, apiKey) {
+  const url = 'https://api.groq.com/openai/v1/audio/transcriptions';
+  
+  // 1. Download video file as blob
+  const responseVideo = UrlFetchApp.fetch(videoUrl, { muteHttpExceptions: true });
+  if (responseVideo.getResponseCode() !== 200) {
+    throw new Error('Failed to download video from URL (HTTP ' + responseVideo.getResponseCode() + ')');
+  }
+  const videoBlob = responseVideo.getBlob();
+  
+  // 2. Build multi-part form payload
+  const payload = {
+    file: videoBlob,
+    model: 'whisper-large-v3',
+    response_format: 'json'
+  };
+  
+  const options = {
+    method: 'post',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey
+    },
+    payload: payload,
+    muteHttpExceptions: true
+  };
+  
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    
+    if (responseCode === 200) {
+      const json = JSON.parse(responseText);
+      if (!json.text) {
+        throw new Error('Invalid transcription response payload: ' + responseText);
+      }
+      return json.text.trim();
+    }
+    
+    if (responseCode === 429) {
+      if (attempts < maxAttempts) {
+        console.log('Transcription Rate limit hit (429). Waiting 15 seconds before retry attempt ' + attempts + '...');
+        Utilities.sleep(15000); // Sleep for 15 seconds to let the rate limit reset
+        continue;
+      } else {
+        throw new Error('Transcription Rate limit exceeded (429) after ' + maxAttempts + ' attempts.');
+      }
+    }
+    
+    throw new Error('Transcription API Error (HTTP ' + responseCode + '): ' + responseText);
   }
 }
