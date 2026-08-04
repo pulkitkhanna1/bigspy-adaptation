@@ -852,19 +852,19 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Dramatic Intensifier</label>
+              <label class="form-label">Hallucination Control & Grounding</label>
               <select id="psa-hallucination-level" class="input-control">
-                <option value="faithful">Faithful (0% Extra Hallucination)</option>
-                <option value="heightened" selected>Heightened (50% Dramatic Escalation)</option>
-                <option value="sensational">Sensational (100% Shocking Hook)</option>
+                <option value="strict_grounded" selected>🔒 Strictly Grounded (0% Hallucination - Strict Target Facts & Names)</option>
+                <option value="heightened">⚡ Heightened Friction (25% Escalation - Intensify Dialogue & Pacing)</option>
+                <option value="sensational">💥 Sensational Hook (50% Escalation - Dramatic Trope Injection)</option>
               </select>
             </div>
             
             <div class="form-group">
-              <label class="form-label">Selective Trope Injection</label>
+              <label class="form-label">Optional Trope Boosters (Check to Force Inject)</label>
               <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:6px">
-                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-billionaire" checked> Secret Billionaire / CEO</label>
-                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-revenge" checked> Revenge Reversal (Slap)</label>
+                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-billionaire"> Secret Billionaire / CEO</label>
+                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-revenge"> Revenge Reversal (Slap)</label>
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-pregnancy"> Secret Pregnancy / Hidden Heir</label>
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-marriage"> Forced Contract Marriage</label>
                 <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="trope-mate"> Werewolf / Fated Mate</label>
@@ -1130,8 +1130,8 @@
       syncKeyStatus();
     }
     
-    // Direct call wrapper to Groq — with auto-retry on 429
-    async function callGroqAPI(messages, jsonMode = false, maxTokens = 1500) {
+    // Direct call wrapper to Groq — with auto-retry on 429 and configurable temperature
+    async function callGroqAPI(messages, jsonMode = false, maxTokens = 1500, temperature = 0.2) {
       const key = localStorage.getItem('groq_api_key') || '';
       if (!key) {
         throw new Error('Groq API Key is not set. Please save it in the Workspace Setup tab.');
@@ -1140,7 +1140,7 @@
       const payload = {
         model: 'llama-3.1-8b-instant',  // fast, high-TPM free-tier model
         messages: messages,
-        temperature: 0.2,
+        temperature: temperature,
         max_tokens: maxTokens     // hard cap — prevents 5 000-token blowout
       };
 
@@ -1708,16 +1708,31 @@ STANDARD VIDEO SCRIPT FORMAT:
       }
       
       let hallInstructions = "";
-      if (hallucinationLevel === 'faithful') {
-        hallInstructions = "HALLUCINATION: FAITHFUL (0%). Stay close to target script details.";
+      let llmTemperature = 0.2;
+      if (hallucinationLevel === 'strict_grounded') {
+        llmTemperature = 0.05; // Near-deterministic for zero hallucination
+        hallInstructions = `
+STRICT FACTUAL GROUNDING MODE (0% HALLUCINATION):
+- STRICT CHARACTER ISOLATION: Use ONLY the character names, roles, and facts from the TARGET SCRIPT.
+- DO NOT COPY SOURCE NAMES: Never copy character names (e.g. Kingsley, Charlotte, Ren, etc.) from the SOURCE backbone script! The source script is strictly a structural beat template.
+- NO SURREAL / UNRELATED PROPS: Do NOT invent eggs, alien rituals, hazing, or sci-fi props. All dialogue must be 100% grounded in the target show's universe.
+`;
       } else if (hallucinationLevel === 'heightened') {
-        hallInstructions = "HALLUCINATION: HEIGHTENED (50%). Embellish emotional stakes and dramatic friction.";
+        llmTemperature = 0.15;
+        hallInstructions = `
+HEIGHTENED FRICTION MODE (25% ESCALATION):
+- Keep all character names and plot world 100% anchored to the TARGET SCRIPT. Heighten the emotional pacing and confrontation dialogue.
+`;
       } else {
-        hallInstructions = "HALLUCINATION: SENSATIONAL (100%). Inject maximum dramatic shock, slaps, and power reversals.";
+        llmTemperature = 0.25;
+        hallInstructions = `
+SENSATIONAL HOOK MODE (50% ESCALATION):
+- Maintain target script character names and core plot world, but introduce a dramatic shock opening (slap or power reveal).
+`;
       }
       
       if (tropes.length > 0) {
-        hallInstructions += ` Seamlessly weave in these tropes: ${tropes.join(', ')}.`;
+        hallInstructions += `\n- OPTIONAL TROPE INJECTION: Weave in these tropes ONLY if they fit naturally: ${tropes.join(', ')}.`;
       }
       
       try {
@@ -1737,10 +1752,10 @@ ${toneInstructions}
 ${formatInstructions}
 ${hallInstructions}
 ${creativeDirectives ? 'CREATIVE TEAM DIRECTIVES:\n' + creativeDirectives + '\n' : ''}
-SOURCE SCRIPT (Asset #${selectedBackboneAssetId}):
+SOURCE STRUCTURAL TEMPLATE (Asset #${selectedBackboneAssetId} - USE FOR BEAT RHYTHM ONLY, DO NOT USE CHARACTER NAMES):
 ${srcSnip3}
 
-TARGET SCRIPT:
+TARGET SHOW SCRIPT (USE CHARACTER NAMES & PLOT FROM HERE ONLY):
 ${tgtSnip3}
 
 ${step2Summary ? 'STEP 2 BACKBONE NOTES:\n' + step2Summary + '\n' : ''}${notes ? 'MAPPING CORRECTIONS:\n' + notes + '\n' : ''}
@@ -1753,7 +1768,7 @@ ${step2Summary ? 'STEP 2 BACKBONE NOTES:\n' + step2Summary + '\n' : ''}${notes ?
 
         const res = await callGroqAPI([
           { role: 'user', content: prompt }
-        ], false, 1000);
+        ], false, 1000, llmTemperature);
         
         // Parse adapted script and merge line out of response
         let adaptedPart = res;
